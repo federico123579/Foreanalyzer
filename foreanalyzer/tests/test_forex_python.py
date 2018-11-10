@@ -7,10 +7,10 @@ Test the forex_python module.
 
 from forex_python.converter import CurrencyRates
 import pytest
-from foreanalyzer._internal_utils import ACC_CURRENCIES
+from foreanalyzer._internal_utils import STR_CURRENCIES
 
 
-currencies = [(x.value[:3], x.value[3:]) for x in ACC_CURRENCIES]
+currencies = [(x[:3], x[3:]) for x in STR_CURRENCIES]
 
 @pytest.fixture(scope="function", params=currencies)
 def get_rates(request):

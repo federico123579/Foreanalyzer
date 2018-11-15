@@ -6,7 +6,9 @@ internal utils
 """
 
 import json
+import os
 import os.path
+import zipfile
 from enum import Enum
 
 
@@ -16,17 +18,12 @@ class ACC_CURRENCIES(Enum):
     AUDUSD = "AUDUSD"
     EURCHF = "EURCHF"
     EURGBP = "EURGBP"
-    EURRUB = "EURRUB"
     EURJPY = "EURJPY"
     EURUSD = "EURUSD"
     GBPUSD = "GBPUSD"
     USDCAD = "USDCAD"
     USDCHF = "USDCHF"
-    USDRUB = "USDRUB"
     USDJPY = "USDJPY"
-
-
-STR_CURRENCIES = [x.value for x in ACC_CURRENCIES]
 
 
 # mode buy or sell
@@ -35,6 +32,10 @@ class MODE(Enum):
     SELL = 'sell'
 
 
+FOLDER_PATH = os.path.dirname(__file__)
+OUTER_FOLDER_PATH = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)))
+STR_CURRENCIES = [x.value for x in ACC_CURRENCIES]
 INVERTED_MODE = {
     'buy': 'sell',
     'sell': 'buy'
@@ -60,8 +61,24 @@ class Singleton(type):
 
 def read_config():
     """read configuration file"""
-    filename = os.path.join(os.path.dirname(
-        os.path.dirname(__file__)), 'config.json')
+    filename = os.path.join(OUTER_FOLDER_PATH, 'config.json')
     with open(filename, 'r') as f:
         config = json.load(f)
     return config
+
+
+def unzip_data(zip_file_basename):
+    """unzip data from folder data outside of foreanalyzer"""
+    # path
+    filename = os.path.join(OUTER_FOLDER_PATH, 'data', zip_file_basename + '.zip')
+    new_folder = os.path.join(os.path.dirname(__file__), 'data')
+    if not os.path.isdir(new_folder):
+        os.mkdir(new_folder)
+    # unzip
+    if os.path.isfile(os.path.join(new_folder, zip_file_basename + '.txt')):
+        return 0
+    else:
+        zip_file = zipfile.ZipFile(filename, 'r')
+        zip_file.extractall(new_folder)
+        zip_file.close()
+        return 1

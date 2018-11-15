@@ -6,24 +6,12 @@ Store the simulated Account abstract object.
 """
 
 import os.path
-from configparser import ConfigParser
 
-from foreanalyzer import tables
+from foreanalyzer import exceptions, tables
 from foreanalyzer._internal_utils import (ACC_CURRENCIES, INVERTED_MODE, MODE,
-                                          Singleton)
+                                          Singleton, read_config)
 from forex_python.converter import CurrencyRates
 from trading212api.api import Client
-
-
-class Handler(metaclass=Singleton):
-    def __init__(self):
-        # set up api
-        config = ConfigParser()
-        config.read(os.path.join(os.path.dirname(
-            os.path.dirname(__file__)), 'config.ini'))
-        self.api = Client()
-        self.api.login(config['ACCOUNT']['username'],
-                       config['ACCOUNT']['password'])
 
 
 class Account(object):
@@ -47,7 +35,7 @@ class Account(object):
             return sum(x.used_funds for x in self.positions)
         else:
             return 0
-    
+
     @property
     def free_funds(self):
         """free funds"""
@@ -61,6 +49,8 @@ class Account(object):
 
     def make_order(self, mode, instrument, quantity):
         """make an order"""
+        if instrument not in self.price_tables:
+            raise exceptions.PriceNotUpdated()
         if mode not in MODE:
             raise ValueError("{} nor buy or sell".format(mode))
         if instrument not in ACC_CURRENCIES:
@@ -71,14 +61,26 @@ class Account(object):
             margin = tables.CURRENCIES[instrument.value].stnd_margin
         elif self.margin_mode == 'pro':
             margin = tables.CURRENCIES[instrument.value].pro_margin
-        # ...
-        # WARNING: instrument needs to be in price_tables (need update price otherwise)
         pos = Position(instrument, mode, quantity,
                        self.price_tables[instrument], margin)
+        # WARNING: instrument needs to be in price_tables (need update price otherwise)
+        if pos.used_funds > self.free_funds:
+            raise exceptions.OrderAborted()
         if instrument not in self.instruments:
             self.instruments.append(instrument)
         self.positions.append(pos)
         return pos
+
+
+class Handler(metaclass=Singleton):
+    """handler for api use"""
+
+    def __init__(self):
+        # set up api
+        config = read_config()
+        self.api = Client()
+        self.api.login(config['ACCOUNT']['username'],
+                       config['ACCOUNT']['password'])
 
 
 class Position(object):
@@ -94,6 +96,21 @@ class Position(object):
         self.margin = margin
         c = CurrencyRates()
         eur_mult = c.get_rate('EUR', instrument.value[:3])
-        rate = eur_mult * c.get_rate(instrument.value[:3], instrument.value[3:])
-        self.used_funds = margin * quantity * \
-            rate * price_couple[mode.value]
+        self.conv_rate = eur_mult * \
+            c.get_rate(instrument.value[:3], instrument.value[3:])
+        self.used_funds = margin * quantity / \
+            self.conv_rate * price_couple[mode.value]
+
+    @property
+    def current_price(self):
+        """update price of price_tables"""
+        price_couple = Handler().api.update_price(self.instrument.value).price
+        return price_couple[self.mode.value]
+
+    @property
+    def gain(self):
+        if self.mode == MODE.BUY:
+            pure_gain = self.current_price - self.target_price
+        elif self.mode == MODE.SELL:
+            pure_gain = self.target_price - self.current_price
+        return self.quantity * pure_gain / self.conv_rate

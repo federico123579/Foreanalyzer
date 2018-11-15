@@ -5,6 +5,8 @@ foreanalyzer._internal_utils
 internal utils
 """
 
+import os.path
+from configparser import ConfigParser
 from enum import Enum
 
 
@@ -54,3 +56,11 @@ class Singleton(type):
         if cls._instance is None:
             cls._instance = super().__call__(*args, **kwargs)
         return cls._instance
+
+
+def read_config():
+    """read configuration file"""
+    config = ConfigParser()
+    config.read(os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'config.ini'))
+    return config

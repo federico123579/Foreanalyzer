@@ -1,0 +1,10 @@
+{
+    "account": {
+        "username": "username",
+        "password": "password"
+    },
+    "simulation": {
+        "initial_funds": 0,
+        "margin_mode": "pro / beginner"
+    }
+}

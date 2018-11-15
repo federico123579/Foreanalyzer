@@ -1,5 +1,5 @@
 """
-tests.forex_python
+tests.test_forex_python
 ~~~~~~~~~~~~~~~~~~
 
 Test the forex_python module.

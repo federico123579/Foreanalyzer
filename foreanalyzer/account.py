@@ -18,6 +18,8 @@ class Account(object):
     """abstract account"""
 
     def __init__(self, margin_mode, initial_funds):
+        if not isinstance(initial_funds, int):
+            raise ValueError("initial funds must be an int")
         if margin_mode not in ["beginner", "pro"]:
             raise ValueError("margin_mode not recognized")
         self.margin_mode = margin_mode
@@ -79,8 +81,8 @@ class Handler(metaclass=Singleton):
         # set up api
         config = read_config()
         self.api = Client()
-        self.api.login(config['ACCOUNT']['username'],
-                       config['ACCOUNT']['password'])
+        self.api.login(config['account']['username'],
+                       config['account']['password'])
 
 
 class Position(object):

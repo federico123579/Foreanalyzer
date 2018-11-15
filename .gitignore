@@ -1,6 +1,7 @@
 # ~ personal ~
 **/.vscode
-config.ini
+config.json
+*.log*
 
 # ~ Default generated from Github ~
 # Byte-compiled / optimized / DLL files

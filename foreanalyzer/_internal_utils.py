@@ -5,8 +5,8 @@ foreanalyzer._internal_utils
 internal utils
 """
 
+import json
 import os.path
-from configparser import ConfigParser
 from enum import Enum
 
 
@@ -60,7 +60,8 @@ class Singleton(type):
 
 def read_config():
     """read configuration file"""
-    config = ConfigParser()
-    config.read(os.path.join(os.path.dirname(
-        os.path.dirname(__file__)), 'config.ini'))
+    filename = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'config.json')
+    with open(filename, 'r') as f:
+        config = json.load(f)
     return config

@@ -23,7 +23,8 @@ class Account(object):
         if margin_mode not in ["beginner", "pro"]:
             raise ValueError("margin_mode not recognized")
         self.margin_mode = margin_mode
-        self.initial_funds = initial_funds
+        self.initial_funds = initial_funds # constant
+        self.funds = initial_funds # variable
         self.positions = []
         self.instruments = []
         # tables of prices for instruments
@@ -41,7 +42,7 @@ class Account(object):
     @property
     def free_funds(self):
         """free funds"""
-        return self.initial_funds - self.used_funds
+        return self.funds - self.used_funds
 
     def update_price(self, instrument):
         """update price of price_tables"""
@@ -63,8 +64,7 @@ class Account(object):
             margin = tables.CURRENCIES[instrument.value].stnd_margin
         elif self.margin_mode == 'pro':
             margin = tables.CURRENCIES[instrument.value].pro_margin
-        pos = Position(instrument, mode, quantity,
-                       self.price_tables[instrument], margin)
+        pos = Position(self, instrument, mode, quantity, margin)
         # WARNING: instrument needs to be in price_tables (need update price otherwise)
         if pos.used_funds > self.free_funds:
             raise exceptions.OrderAborted()
@@ -72,6 +72,9 @@ class Account(object):
             self.instruments.append(instrument)
         self.positions.append(pos)
         return pos
+
+    def close_position(self, position):
+        self.funds += position.gain
 
 
 class Handler(metaclass=Singleton):
@@ -88,12 +91,13 @@ class Handler(metaclass=Singleton):
 class Position(object):
     """position to do"""
 
-    def __init__(self, instrument, mode, quantity, price_couple, margin):
+    def __init__(self, account, instrument, mode, quantity, margin):
+        self.account = account
         self.instrument = instrument
         self.mode = mode
         self.quantity = quantity
-        self.open_price = price_couple[INVERTED_MODE[mode.value]]
-        self.target_price = price_couple[mode.value]
+        self.open_price = account.price_tables[instrument][INVERTED_MODE[mode.value]]
+        self.target_price = account.price_tables[instrument][mode.value]
         self.spread = abs(self.open_price - self.target_price)
         self.margin = margin
         c = CurrencyRates()
@@ -101,12 +105,12 @@ class Position(object):
         self.conv_rate = eur_mult * \
             c.get_rate(instrument.value[:3], instrument.value[3:])
         self.used_funds = margin * quantity / \
-            self.conv_rate * price_couple[mode.value]
+            self.conv_rate * self.target_price
 
     @property
     def current_price(self):
         """update price of price_tables"""
-        price_couple = Handler().api.update_price(self.instrument.value).price
+        price_couple = self.account.price_tables[self.instrument]
         return price_couple[self.mode.value]
 
     @property
@@ -116,3 +120,6 @@ class Position(object):
         elif self.mode == MODE.SELL:
             pure_gain = self.target_price - self.current_price
         return self.quantity * pure_gain / self.conv_rate
+
+    def close(self):
+        self.account.close_position(self)

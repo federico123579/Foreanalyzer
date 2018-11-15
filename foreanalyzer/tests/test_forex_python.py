@@ -12,6 +12,7 @@ from foreanalyzer._internal_utils import STR_CURRENCIES
 # logger
 import logging
 LOGGER = logging.getLogger("foreanalyzer.tests.test_forex_python")
+LOGGER.info("TESTING test_forex_python.py module")
 
 
 currencies = [(x[:3], x[3:]) for x in STR_CURRENCIES]

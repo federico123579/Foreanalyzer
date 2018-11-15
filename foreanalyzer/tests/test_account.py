@@ -5,6 +5,7 @@ test.test_account
 Test account.
 """
 
+import time
 import pytest
 from foreanalyzer._internal_utils import ACC_CURRENCIES, MODE
 from foreanalyzer.account import Account, Position
@@ -14,14 +15,13 @@ from foreanalyzer.tables import CURRENCIES
 # logger
 import logging
 LOGGER = logging.getLogger("foreanalyzer.tests.test_account")
+LOGGER.info("TESTING test_account.py module")
 
 
 @pytest.fixture(scope="function", params=["beginner", "pro"])
 def get_account(request):
     param = request.param
-    LOGGER.debug("RUN testing account {}".format(param))
     yield Account(param, 1000)
-    LOGGER.debug("PASSED test account {}".format(param))
 
 
 orders = []
@@ -31,16 +31,15 @@ orders.extend(orders_1)
 orders.extend(orders_2)
 
 
-@pytest.fixture(scope="function", params=orders_2)
+@pytest.fixture(scope="function", params=orders)
 def get_lot_orders(request):
     param = request.param
-    LOGGER.debug("RUN testing order {}".format(param[1]))
     yield param
-    LOGGER.debug("PASSED test order {}".format(param[1]))
 
 
 def test_make_order(get_account, get_lot_orders):
     """test the big function of make order"""
+    LOGGER.debug("RUN test_make_order")
     # PARAMS
     acc = get_account
     param = get_lot_orders
@@ -75,11 +74,12 @@ def test_make_order(get_account, get_lot_orders):
         pure_gain = order.target_price - acc.price_tables[param[1]]['sell']
     assert order.gain == order.quantity * pure_gain / order.conv_rate
     LOGGER.debug("RESULT test_gain - {}".format(order.gain))
-    LOGGER.debug("RUN test_make_order of {}".format(param[1]))
+    LOGGER.debug("PASSED test_make_order of {}".format(param[1]))
 
 
 def test_funds_overcharge(get_account):
     """test the funds if the order is too big"""
+    LOGGER.debug("RUN test_funds_overcharge")
     # PARAM
     acc = get_account
     # make order
@@ -87,3 +87,24 @@ def test_funds_overcharge(get_account):
     # raise
     with pytest.raises(OrderAborted):
         acc.make_order(MODE.BUY, ACC_CURRENCIES.USDJPY, 5000000)
+
+
+def test_close_positon():
+    """test closing of a position"""
+    LOGGER.debug("RUN test_close_position")
+    # PARAM
+    acc = Account("beginner", 1000)
+    # make order
+    acc.update_price(ACC_CURRENCIES.EURUSD)
+    funds = acc.funds
+    LOGGER.debug("RESULT funds - {}".format(funds))
+    acc.make_order(MODE.BUY, ACC_CURRENCIES.EURUSD, 5000)
+    # compare gain with funds
+    LOGGER.debug("sleeping...")
+    older_price = acc.price_tables[ACC_CURRENCIES.EURUSD]['buy']
+    acc.price_tables[ACC_CURRENCIES.EURUSD]['buy'] = older_price + 0.1
+    acc.positions[0].close()
+    acc.price_tables[ACC_CURRENCIES.EURUSD]['buy'] = older_price
+    LOGGER.debug("RESULT acc.funds - {}".format(acc.funds))
+    assert acc.funds != funds
+    LOGGER.debug("PASSED test_close_position")

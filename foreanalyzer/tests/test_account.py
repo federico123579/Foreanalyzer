@@ -9,7 +9,7 @@ import time
 import pytest
 from foreanalyzer._internal_utils import ACC_CURRENCIES, MODE
 from foreanalyzer.account import Account, Position
-from foreanalyzer.exceptions import OrderAborted
+from foreanalyzer.exceptions import FundsExhausted, OrderAborted
 from foreanalyzer.tables import CURRENCIES
 
 # logger
@@ -87,6 +87,23 @@ def test_funds_overcharge(get_account):
     # raise
     with pytest.raises(OrderAborted):
         acc.make_order(MODE.BUY, ACC_CURRENCIES.USDJPY, 5000000)
+    LOGGER.debug("PASSED test_funds_overcharge")
+
+
+def test_funds_exhausted():
+    """test if raise exception on funds exhausted"""
+    LOGGER.debug("RUN test_funds_exhausted")
+    acc = Account('beginner', 200)
+    EURUSD = ACC_CURRENCIES.EURUSD
+    acc.update_price(EURUSD)
+    acc.make_order(MODE.BUY, EURUSD, 5000)
+    acc.price_tables[ACC_CURRENCIES.EURUSD]['buy'] = 0.00001
+    acc.price_tables[ACC_CURRENCIES.EURUSD]['sell'] = 0.000009
+    with pytest.raises(FundsExhausted):
+        acc.positions[0].close()
+    assert acc.funds == 0
+    LOGGER.debug("PASSED test_funds_exhausted")
+
 
 
 def test_close_positon():

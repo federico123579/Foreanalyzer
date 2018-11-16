@@ -74,7 +74,12 @@ class Account(object):
         return pos
 
     def close_position(self, position):
-        self.funds += position.gain
+        gain = position.gain
+        if self.funds + gain < 0:
+            self.funds = 0
+            raise exceptions.FundsExhausted()
+        else:
+            self.funds += gain
 
 
 class Handler(metaclass=Singleton):

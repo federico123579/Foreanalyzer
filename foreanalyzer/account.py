@@ -115,6 +115,7 @@ class Position(object):
 
     @property
     def gain(self):
+        """give the result"""
         if self.mode == MODE.BUY:
             pure_gain = self.current_price - self.target_price
         elif self.mode == MODE.SELL:

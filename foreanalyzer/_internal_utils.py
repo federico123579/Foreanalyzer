@@ -67,10 +67,10 @@ def read_config():
     return config
 
 
-def unzip_data(zip_file_basename):
+def unzip_data(folder, zip_file_basename):
     """unzip data from folder data outside of foreanalyzer"""
     # path
-    filename = os.path.join(OUTER_FOLDER_PATH, 'data', zip_file_basename + '.zip')
+    filename = os.path.join(folder, zip_file_basename + '.zip')
     new_folder = os.path.join(os.path.dirname(__file__), 'data')
     if not os.path.isdir(new_folder):
         os.mkdir(new_folder)

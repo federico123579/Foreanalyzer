@@ -75,10 +75,12 @@ def unzip_data(folder, zip_file_basename):
     if not os.path.isdir(new_folder):
         os.mkdir(new_folder)
     # unzip
-    if os.path.isfile(os.path.join(new_folder, zip_file_basename + '.txt')):
+    if os.path.isfile(os.path.join(new_folder, zip_file_basename + '.csv')):
         return 0
     else:
         zip_file = zipfile.ZipFile(filename, 'r')
         zip_file.extractall(new_folder)
         zip_file.close()
+        basename = os.path.join(new_folder, zip_file_basename)
+        os.rename(basename + '.txt', basename + '.csv')
         return 1

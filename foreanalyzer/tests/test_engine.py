@@ -28,7 +28,7 @@ def test_unzip_data():
         not_already_zipped = unzip_data(OUTER_FOLDER_PATH, 'EURUSD')
     assert not_already_zipped == 0
     LOGGER.debug("PASSED test_unzip_data")
-    os.remove(os.path.join(FOLDER_PATH, 'data', 'EURUSD.txt'))
+    os.remove(os.path.join(FOLDER_PATH, 'data', 'EURUSD.csv'))
     LOGGER.debug("clean up completed...")
 
 
@@ -38,8 +38,8 @@ def test_ZipFeeder():
     feeder.normalize_data()
     for instr in ACC_CURRENCIES:
         assert os.path.isfile(os.path.join(
-            FOLDER_PATH, 'data', instr.value + '.txt'))
+            FOLDER_PATH, 'data', instr.value + '.csv'))
     LOGGER.debug("PASSED test_ZipFeeder")
     for instr in ACC_CURRENCIES:
-        os.remove(os.path.join(FOLDER_PATH, 'data', instr.value + '.txt'))
+        os.remove(os.path.join(FOLDER_PATH, 'data', instr.value + '.csv'))
     LOGGER.debug("clean up completed...")

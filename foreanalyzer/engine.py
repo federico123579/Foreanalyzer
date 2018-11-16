@@ -20,6 +20,7 @@ class EngineBridge(object):
 
     def __init__(self):
         # data to feed
-        self.data = DataHandler()
+        handler = DataHandler()
+        handler.get_data()
         # init simulation components
         self.account = AccountSimulated()

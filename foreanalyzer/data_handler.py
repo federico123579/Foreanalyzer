@@ -30,10 +30,13 @@ class DataHandler(object):
     def load_data(self, instrument):
         if instrument not in ACC_CURRENCIES:
             raise ValueError("Instrument not accepted")
-        
+
 
 class Feeder(metaclass=abc.ABCMeta):
     """abstract implementation of Feeder of data"""
+
+    def __init__(self):
+        self.data = []
 
     @abc.abstractmethod
     def normalize_data(self):

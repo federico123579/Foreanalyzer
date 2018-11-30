@@ -33,8 +33,7 @@ class MODE(Enum):
 
 
 FOLDER_PATH = os.path.dirname(__file__)
-OUTER_FOLDER_PATH = os.path.join(os.path.dirname(
-    os.path.dirname(__file__)))
+OUTER_FOLDER_PATH = os.path.dirname(os.path.dirname(__file__))
 STR_CURRENCIES = [x.value for x in ACC_CURRENCIES]
 INVERTED_MODE = {
     'buy': 'sell',

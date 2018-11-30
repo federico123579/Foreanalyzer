@@ -23,7 +23,8 @@ VERSION = None
 # What packages are required for this module to be executed?
 REQUIRED = [
     "forex_python",
-    "trading212api"
+    "trading212api",
+    "pandas"
 ]
 
 # What packages are optional?

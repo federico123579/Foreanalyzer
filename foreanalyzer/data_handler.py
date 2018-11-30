@@ -7,9 +7,10 @@ RAM eater, load RAM.
 
 import abc
 import os.path
+
 import pandas
 
-from foreanalyzer._internal_utils import (ACC_CURRENCIES, OUTER_FOLDER_PATH,
+from foreanalyzer._internal_utils import (ACC_CURRENCIES, FOLDER_PATH,
                                           unzip_data)
 
 # logger
@@ -21,27 +22,33 @@ class DataHandler(object):
     """handler"""
 
     def __init__(self):
-        self.data = []
+        self.FOLDER = os.path.join(FOLDER_PATH, 'data')
+        self.feeder = ZipFeeder(self.FOLDER)
+        self.data = {}
 
     def get_data(self):
-        # unzip files
-        folder = os.path.join(OUTER_FOLDER_PATH, 'data')
-        self.feeder = ZipFeeder(folder)
-        self.feeder.normalize_data()
-        for fil in os.listdir(folder):
-            instr_name = os.path.basename(fil)
-            self.data[] pandas.read_csv(fil)
+        """!INEFFICIENT!"""
+        for instr in ACC_CURRENCIES:
+            self.load_data(instr)
+        return self.data
+
+    def unload_data(self):
+        self.data.clear()
 
     def load_data(self, instrument):
         if instrument not in ACC_CURRENCIES:
             raise ValueError("Instrument not accepted")
+        self.feeder.normalize_single(instrument)
+        file_path = os.path.join(self.FOLDER, instrument.value + '.csv')
+        self.data[instrument.value] = pandas.read_csv(file_path)
+        return self.data[instrument.value]
 
 
 class Feeder(metaclass=abc.ABCMeta):
     """abstract implementation of Feeder of data"""
 
     def __init__(self):
-        self.data = []
+        pass
 
     @abc.abstractmethod
     def normalize_data(self):

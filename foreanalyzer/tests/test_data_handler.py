@@ -6,8 +6,10 @@ Test the data_handler module.
 """
 
 import os
-
 import pytest
+
+import pandas
+
 from foreanalyzer._internal_utils import (ACC_CURRENCIES, FOLDER_PATH,
                                           OUTER_FOLDER_PATH, unzip_data)
 from foreanalyzer.data_handler import DataHandler, ZipFeeder
@@ -20,6 +22,14 @@ LOGGER.info("TESTING test_data_handler.py module")
 OUTER_FOLDER_PATH = os.path.join(OUTER_FOLDER_PATH, 'data')
 
 
+def cleaning():
+    for instr in ACC_CURRENCIES:
+        path = os.path.join(FOLDER_PATH, 'data', instr.value + '.csv')
+        if os.path.isfile(path):
+            os.remove(path)
+    LOGGER.debug("cleaning completed...")
+
+
 def test_unzip_data():
     """extract and test again"""
     LOGGER.debug("RUN test_unzip_data")
@@ -28,8 +38,7 @@ def test_unzip_data():
         not_already_zipped = unzip_data(OUTER_FOLDER_PATH, 'EURUSD')
     assert not_already_zipped == 0
     LOGGER.debug("PASSED test_unzip_data")
-    os.remove(os.path.join(FOLDER_PATH, 'data', 'EURUSD.csv'))
-    LOGGER.debug("clean up completed...")
+    cleaning()
 
 
 @pytest.fixture(scope="function", params=[x for x in ACC_CURRENCIES])
@@ -47,15 +56,35 @@ def test_ZipFeeder(get_zip_file):
     path = os.path.join(FOLDER_PATH, 'data', instr.value + '.csv')
     assert os.path.isfile(path)
     LOGGER.debug("PASSED test_ZipFeeder for {}".format(instr.value))
-    os.remove(path)
-    LOGGER.debug("clean up completed...")
+    cleaning()
 
-def test_loaded_data():
-    LOGGER.debug("RUN test_loaded_data")
-    feeder = ZipFeeder(OUTER_FOLDER_PATH)
-    feeder.normalize_data()
-    path = os.path.join(FOLDER_PATH, 'data', 'EURUSD.csv')
-    assert hasattr(feeder, 'data')
-    assert isinstance(feeder, dict)
-    # WORK ON
-    LOGGER.debug("PASSED test_loaded_data")
+def test_loadedData_single():
+    LOGGER.debug("RUN test_loadedData_single")
+    handle = DataHandler()
+    data = handle.load_data(ACC_CURRENCIES.EURUSD)
+    assert hasattr(handle, 'data')
+    assert isinstance(handle.data, dict)
+    assert 'EURUSD' in handle.data.keys()
+    LOGGER.debug(data.head())
+    LOGGER.debug("PASSED test_loadedData_single")
+    cleaning()
+
+def test_loadedData_all():
+    LOGGER.debug("RUN test_loadedData_all")
+    handle = DataHandler()
+    data = handle.get_data()
+    for instr in ACC_CURRENCIES:
+        expected_dataframe = data[instr.value]
+        assert isinstance(expected_dataframe, pandas.DataFrame)
+    LOGGER.debug("PASSED test_loadedData_all")
+    cleaning()
+
+def test_loadedData_unload():
+    LOGGER.debug("RUN test_loadedData_unload")
+    handle = DataHandler()
+    data = handle.load_data(ACC_CURRENCIES.EURUSD)
+    handle.unload_data()
+    for instr in ACC_CURRENCIES: 
+        assert instr.value not in handle.data.keys()
+    LOGGER.debug("PASSED test_loadedData_unload")
+    cleaning()

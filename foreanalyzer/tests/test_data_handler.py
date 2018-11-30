@@ -49,3 +49,13 @@ def test_ZipFeeder(get_zip_file):
     LOGGER.debug("PASSED test_ZipFeeder for {}".format(instr.value))
     os.remove(path)
     LOGGER.debug("clean up completed...")
+
+def test_loaded_data():
+    LOGGER.debug("RUN test_loaded_data")
+    feeder = ZipFeeder(OUTER_FOLDER_PATH)
+    feeder.normalize_data()
+    path = os.path.join(FOLDER_PATH, 'data', 'EURUSD.csv')
+    assert hasattr(feeder, 'data')
+    assert isinstance(feeder, dict)
+    # WORK ON
+    LOGGER.debug("PASSED test_loaded_data")

@@ -7,6 +7,7 @@ RAM eater, load RAM.
 
 import abc
 import os.path
+import pandas
 
 from foreanalyzer._internal_utils import (ACC_CURRENCIES, OUTER_FOLDER_PATH,
                                           unzip_data)
@@ -20,12 +21,16 @@ class DataHandler(object):
     """handler"""
 
     def __init__(self):
-        pass
+        self.data = []
 
     def get_data(self):
         # unzip files
-        self.feeder = ZipFeeder(os.path.join(OUTER_FOLDER_PATH, 'data'))
+        folder = os.path.join(OUTER_FOLDER_PATH, 'data')
+        self.feeder = ZipFeeder(folder)
         self.feeder.normalize_data()
+        for fil in os.listdir(folder):
+            instr_name = os.path.basename(fil)
+            self.data[] pandas.read_csv(fil)
 
     def load_data(self, instrument):
         if instrument not in ACC_CURRENCIES:

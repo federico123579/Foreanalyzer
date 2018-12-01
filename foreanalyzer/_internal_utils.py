@@ -32,6 +32,16 @@ class MODE(Enum):
     SELL = 'sell'
 
 
+# timeframes
+class ACC_TIMEFRAMES(Enum):
+    ONE_MINUTE = '1m'
+    FIVE_MIUTES = '5m'
+    TEN_MINUTES = '10m'
+    ONE_HOUR = '1h'
+    FOUR_HOURS = '4h'
+    ONE_MONTH = '1M'
+
+
 FOLDER_PATH = os.path.dirname(__file__)
 OUTER_FOLDER_PATH = os.path.dirname(os.path.dirname(__file__))
 STR_CURRENCIES = [x.value for x in ACC_CURRENCIES]

@@ -8,7 +8,7 @@ Test the data_handler module.
 import os
 import pytest
 
-import pandas
+import pandas as pd
 
 from foreanalyzer._internal_utils import (ACC_CURRENCIES, FOLDER_PATH,
                                           OUTER_FOLDER_PATH, unzip_data)
@@ -65,6 +65,8 @@ def test_loadedData_single():
     assert hasattr(handle, 'data')
     assert isinstance(handle.data, dict)
     assert 'EURUSD' in handle.data.keys()
+    assert isinstance(data, pd.DataFrame)
+    assert all([x for x in data.columns if x == x.lower()])
     LOGGER.debug(data.head())
     LOGGER.debug("PASSED test_loadedData_single")
     cleaning()
@@ -75,7 +77,8 @@ def test_loadedData_all():
     data = handle.get_data()
     for instr in ACC_CURRENCIES:
         expected_dataframe = data[instr.value]
-        assert isinstance(expected_dataframe, pandas.DataFrame)
+        assert isinstance(expected_dataframe, pd.DataFrame)
+        assert all([x for x in expected_dataframe.columns if x == x.lower()])
     LOGGER.debug("PASSED test_loadedData_all")
     cleaning()
 

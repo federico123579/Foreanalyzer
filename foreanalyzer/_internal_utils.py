@@ -39,6 +39,7 @@ class ACC_TIMEFRAMES(Enum):
     TEN_MINUTES = '10m'
     ONE_HOUR = '1h'
     FOUR_HOURS = '4h'
+    ONE_DAY = '1d'
     ONE_MONTH = '1M'
 
 

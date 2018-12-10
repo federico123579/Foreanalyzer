@@ -8,10 +8,10 @@ RAM eater, load RAM.
 import abc
 import os.path
 
-import pandas
+import pandas as pd
 
 from foreanalyzer._internal_utils import (ACC_CURRENCIES, FOLDER_PATH,
-                                          unzip_data)
+                                          OUTER_FOLDER_PATH, unzip_data)
 
 # logger
 import logging
@@ -23,7 +23,7 @@ class DataHandler(object):
 
     def __init__(self):
         self.FOLDER = os.path.join(FOLDER_PATH, 'data')
-        self.feeder = ZipFeeder(self.FOLDER)
+        self.feeder = ZipFeeder(os.path.join(OUTER_FOLDER_PATH, 'data'))
         self.data = {}
 
     def get_data(self):
@@ -40,8 +40,13 @@ class DataHandler(object):
             raise ValueError("Instrument not accepted")
         self.feeder.normalize_single(instrument)
         file_path = os.path.join(self.FOLDER, instrument.value + '.csv')
-        self.data[instrument.value] = pandas.read_csv(file_path)
+        df = self._normalize_data(pd.read_csv(file_path))
+        self.data[instrument.value] = df
         return self.data[instrument.value]
+
+    def _normalize_data(self, df):
+        df.rename(columns=lambda x: x.strip('<>').lower(), inplace=True)
+        return df
 
 
 class Feeder(metaclass=abc.ABCMeta):

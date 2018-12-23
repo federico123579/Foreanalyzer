@@ -20,6 +20,7 @@ LOGGER = logging.getLogger("foreanalyzer.tests.test_data_handler")
 LOGGER.info("TESTING test_data_handler.py module")
 
 OUTER_FOLDER_PATH = os.path.join(OUTER_FOLDER_PATH, 'data')
+RANGE_OF_VALUES = 10000
 
 
 def cleaning():
@@ -60,7 +61,7 @@ def test_ZipFeeder(get_zip_file):
 
 def test_loadedData_single():
     LOGGER.debug("RUN test_loadedData_single")
-    handle = DataHandler()
+    handle = DataHandler(RANGE_OF_VALUES)
     data = handle.load_data(ACC_CURRENCIES.EURUSD)
     assert hasattr(handle, 'data')
     assert isinstance(handle.data, dict)
@@ -73,7 +74,7 @@ def test_loadedData_single():
 
 def test_loadedData_all():
     LOGGER.debug("RUN test_loadedData_all")
-    handle = DataHandler()
+    handle = DataHandler(RANGE_OF_VALUES)
     data = handle.get_data()
     for instr in ACC_CURRENCIES:
         expected_dataframe = data[instr.value]
@@ -84,7 +85,7 @@ def test_loadedData_all():
 
 def test_loadedData_unload():
     LOGGER.debug("RUN test_loadedData_unload")
-    handle = DataHandler()
+    handle = DataHandler(RANGE_OF_VALUES)
     data = handle.load_data(ACC_CURRENCIES.EURUSD)
     handle.unload_data()
     for instr in ACC_CURRENCIES: 

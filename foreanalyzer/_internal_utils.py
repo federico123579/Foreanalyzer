@@ -35,11 +35,12 @@ class MODE(Enum):
 # timeframes
 class ACC_TIMEFRAMES(Enum):
     ONE_MINUTE = '1m'
-    FIVE_MIUTES = '5m'
+    FIVE_MINUTES = '5m'
     TEN_MINUTES = '10m'
     ONE_HOUR = '1h'
     FOUR_HOURS = '4h'
     ONE_DAY = '1d'
+    ONE_WEEK = '1w'
     ONE_MONTH = '1M'
 
 
@@ -51,6 +52,18 @@ INVERTED_MODE = {
     'sell': 'buy'
 }
 
+
+def norm_timeframe(timeframe):
+    conv_list = {
+        '1m': 60,
+        '5m': 300,
+        '10m': 600,
+        '1h': 3600,
+        '4h': 14400,
+        '1d': 86400,
+        '1w': 604800,
+        '1M': 2592000}
+    return conv_list[timeframe.value]
 
 # -[ SINGLETON ]-
 class Singleton(type):

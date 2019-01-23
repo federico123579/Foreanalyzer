@@ -44,10 +44,14 @@ class Account(object):
         """free funds"""
         return self.funds - self.used_funds
 
+    def set_price(self, instrument, price):
+        """set the price of an instrument"""
+        self.price_tables[instrument] = price
+
     def update_price(self, instrument):
         """update price of price_tables"""
         price = self.api.update_price(instrument.value).price
-        self.price_tables[instrument] = price
+        self.set_price(instrument, price)
         return price
 
     def make_order(self, mode, instrument, quantity):

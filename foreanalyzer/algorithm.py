@@ -11,7 +11,7 @@ import numpy as np
 
 from foreanalyzer.data_handler import DataHandler
 from foreanalyzer._internal_utils import (
-    ACC_TIMEFRAMES, ACC_CURRENCIES, norm_timeframe)
+    ACC_TIMEFRAMES, ACC_CURRENCIES, MODE, norm_timeframe)
 from foreanalyzer.exceptions import PeriodNotExpected
 
 # logger
@@ -67,7 +67,7 @@ class AlgorithmExample001(AbstractAlgorithm):
     def feed(self):
         for instr in self.accepted_instruments:
             # load data from csv
-            LOGGER.debug("loading data...")
+            LOGGER.debug("loading data for {} . . .".format(instr))
             self.DH.load_data(instr)
             data = self.data[instr.value]
             # fix timeframe
@@ -88,9 +88,15 @@ class AlgorithmExample001(AbstractAlgorithm):
                 nan_removed, len_pre_removal))
             return data
 
-    def analyse(self):
-        for instr in ACC_CURRENCIES:
-            pass
+    def analyse(self, instr):
+        data = self.data[instr.value] # load data
+        movs = []
+        for i in range(len(data)):
+            if data.iloc[i]['close'] > data.iloc[i]['sma']:
+                tm = data.iloc[i]['timestamp']
+                mode = MODE.BUY
+                movs.append({'timeframe': tm, 'mode': mode})
+        return movs
 
 
 #~~~~~~~~~~~~#

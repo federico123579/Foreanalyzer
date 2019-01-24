@@ -6,5 +6,8 @@
     "simulation": {
         "initial_funds": 0,
         "margin_mode": "pro / beginner"
+    },
+    "engine": {
+        "range_of_simulation": 0
     }
 }

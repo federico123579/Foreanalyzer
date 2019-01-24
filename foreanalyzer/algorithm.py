@@ -95,7 +95,9 @@ class AlgorithmExample001(AbstractAlgorithm):
             if data.iloc[i]['close'] > data.iloc[i]['sma']:
                 tm = data.iloc[i]['timestamp']
                 mode = MODE.BUY
-                movs.append({'timeframe': tm, 'mode': mode})
+                quantity = 100
+                movs.append({'timeframe': tm, 'mode': mode,
+                             'quantity': quantity})
         return movs
 
 

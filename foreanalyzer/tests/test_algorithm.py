@@ -74,3 +74,4 @@ def test_feed():
     data = algo.feed()
     LOGGER.debug(data.tail())
     LOGGER.debug("PASSED test_feed")
+

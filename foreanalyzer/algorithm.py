@@ -55,11 +55,10 @@ class AbstractAlgorithm(metaclass=abc.ABCMeta):
 
 
 class AlgorithmExample001(AbstractAlgorithm):
-    def __init__(self):
+    def __init__(self, range_of_values):
         timeframe = ACC_TIMEFRAMES.ONE_HOUR
         acc_instrums = [ACC_CURRENCIES.EURUSD]
         period = 15
-        range_of_values = 50000
         super().__init__(timeframe, acc_instrums, period, range_of_values)
         # tools
         self.sma = SMA(self.period)

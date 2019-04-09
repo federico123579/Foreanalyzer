@@ -23,12 +23,13 @@ VERSION = None
 # What packages are required for this module to be executed?
 REQUIRED = [
     "forex_python",
-    "trading212api",
-    "pandas"
+    "XTBApi",
+    "pandas", 'PyYAML', 'numpy'
 ]
 
 # What packages are optional?
 EXTRAS = {
+    "pytest"
     # 'fancy feature': ['django'],
 }
 

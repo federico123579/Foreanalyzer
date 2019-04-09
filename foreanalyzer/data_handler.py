@@ -5,49 +5,15 @@ foreanalyzer.data_handler
 RAM eater, load RAM.
 """
 
-import abc
+import logging
 import os.path
 import time
 
 import pandas as pd
 
-from foreanalyzer._internal_utils import (
-    ACC_CURRENCIES, FOLDER_PATH, OUTER_FOLDER_PATH, unzip_data)
+import foreanalyzer._internal_utils
 
-# logger
-import logging
 LOGGER = logging.getLogger("foreanalyzer.data")
-
-
-class DataHandler(object):
-    """handler"""
-
-    def __init__(self, range_of_values):
-        self.FOLDER = os.path.join(FOLDER_PATH, 'data')
-        self.feeder = ZipFeeder(os.path.join(OUTER_FOLDER_PATH, 'data'))
-        self.range_of_values = range_of_values
-        self.data = {}
-
-    def get_data(self):
-        """!INEFFICIENT!"""
-        for instr in ACC_CURRENCIES:
-            self.load_data(instr)
-        return self.data
-
-    def unload_data(self):
-        self.data.clear()
-
-    def load_data(self, instrument):
-        if instrument not in ACC_CURRENCIES:
-            raise ValueError("Instrument not accepted")
-        self.feeder.normalize_single(instrument)
-        file_path = os.path.join(self.FOLDER, instrument.value + '.csv')
-        df = normalize_df(pd.read_csv(file_path), self.range_of_values)
-        self.data[instrument.value] = df
-        return self.data[instrument.value]
-
-    def extract_all(self):
-        self.feeder.normalize_data()
 
 
 def normalize_df(df, range_of_values, time_of_log=10):
@@ -56,39 +22,62 @@ def normalize_df(df, range_of_values, time_of_log=10):
     old_t = time.time()
     for i, row in enumerate(df.iterrows()):
         if time.time() - old_t > time_of_log:
-            LOGGER.debug("{:.3f}% normalized".format(i / len(df) * 100))
+            LOGGER.debug(f"{i / len(df) * 100:.3f}% normalized")
             old_t = time.time()
         str_time = str(int(row[1].loc['time']))
         str_date = str(int(row[1].loc['dtyyyymmdd']))
         if len(str_time) < 6:
             str_time = (6 - len(str_time))*'0' + str_time
         timestamp = pd.Timestamp(str_date + str_time)
-        df.loc[row[0],'time'] = timestamp
+        df.loc[row[0], 'time'] = timestamp
     df.drop(columns=['ticker', 'vol', 'dtyyyymmdd'], inplace=True)
     df.rename({'time': 'timestamp'}, axis='columns', inplace=True)
     return df
 
 
-class Feeder(metaclass=abc.ABCMeta):
-    """abstract implementation of Feeder of data"""
+class Dataframe(object):
+    """Dataframe class"""
 
-    def __init__(self):
-        pass
+    def __init__(self, currency, range_of_values: int):
+        if currency not in foreanalyzer._internal_utils.CURRENCIES:
+            raise ValueError("Instrument not accepted")
+        # feeder
+        self._folder = os.path.join(
+            foreanalyzer._internal_utils.FOLDER_PATH, 'data')
+        self.feeder = ZipFeeder(os.path.join(
+            foreanalyzer._internal_utils.OUTER_FOLDER_PATH, 'data'))
+        self.currency = currency
+        self.range_of_values = range_of_values
+        self.data = None
 
-    @abc.abstractmethod
-    def normalize_data(self):
-        pass
+    def load(self):
+        """load the dataframe with data"""
+        self.feeder.normalize_single(self.currency)
+        file_path = os.path.join(self._folder, self.currency.value + '.csv')
+        df = normalize_df(pd.read_csv(file_path), self.range_of_values)
+        self.data = df
+        return df
+
+    def unload(self):
+        del self.data
+        self.data = None
 
 
-class ZipFeeder(Feeder):
+class DataHandler(object):
+    """handler"""
+
+    def __init__(self, range_of_values: int):
+        self.dataframes = {}
+        self.range_of_values = range_of_values
+        for currency in foreanalyzer._internal_utils.CURRENCIES:
+            self.dataframes[currency] = Dataframe(currency, range_of_values)
+
+
+class ZipFeeder(object):
     """create data from zip file outer folder"""
 
     def __init__(self, folder):
         self.basefolder = folder
 
     def normalize_single(self, instr):
-        unzip_data(self.basefolder, instr.value)
-
-    def normalize_data(self):
-        for instr in ACC_CURRENCIES:
-            self.normalize_single(instr)
+        foreanalyzer._internal_utils.unzip_data(self.basefolder, instr.value)

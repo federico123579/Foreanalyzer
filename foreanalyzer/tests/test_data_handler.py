@@ -5,26 +5,24 @@ tests.test_data_handler
 Test the data_handler module.
 """
 
+import logging
 import os
-import pytest
 
 import pandas as pd
+import pytest
 
-from foreanalyzer._internal_utils import (ACC_CURRENCIES, FOLDER_PATH,
+from foreanalyzer._internal_utils import (CURRENCIES, FOLDER_PATH,
                                           OUTER_FOLDER_PATH, unzip_data)
 from foreanalyzer.data_handler import DataHandler, ZipFeeder
 
-# logger
-import logging
 LOGGER = logging.getLogger("foreanalyzer.tests.test_data_handler")
-LOGGER.info("TESTING test_data_handler.py module")
 
 OUTER_FOLDER_PATH = os.path.join(OUTER_FOLDER_PATH, 'data')
 RANGE_OF_VALUES = 10000
 
 
 def cleaning():
-    for instr in ACC_CURRENCIES:
+    for instr in CURRENCIES:
         path = os.path.join(FOLDER_PATH, 'data', instr.value + '.csv')
         if os.path.isfile(path):
             os.remove(path)
@@ -42,7 +40,7 @@ def test_unzip_data():
     cleaning()
 
 
-@pytest.fixture(scope="function", params=[x for x in ACC_CURRENCIES])
+@pytest.fixture(scope="function", params=[x for x in CURRENCIES])
 def get_zip_file(request):
     instr = request.param
     LOGGER.debug("passing {}".format(instr))
@@ -59,36 +57,29 @@ def test_ZipFeeder(get_zip_file):
     LOGGER.debug("PASSED test_ZipFeeder for {}".format(instr.value))
     cleaning()
 
+
 def test_loadedData_single():
     LOGGER.debug("RUN test_loadedData_single")
     handle = DataHandler(RANGE_OF_VALUES)
-    data = handle.load_data(ACC_CURRENCIES.EURUSD)
-    assert hasattr(handle, 'data')
-    assert isinstance(handle.data, dict)
-    assert 'EURUSD' in handle.data.keys()
-    assert isinstance(data, pd.DataFrame)
-    assert all([x for x in data.columns if x == x.lower()])
-    LOGGER.debug(data.head())
+    data = handle.dataframes[CURRENCIES.EURUSD]
+    data.load()
+    assert hasattr(handle, 'dataframes')
+    assert isinstance(handle.dataframes, dict)
+    assert CURRENCIES.EURUSD in handle.dataframes.keys()
+    assert isinstance(data.data, pd.DataFrame)
+    assert all([x for x in data.data.columns if x == x.lower()])
+    LOGGER.debug(data.data.head())
     LOGGER.debug("PASSED test_loadedData_single")
     cleaning()
 
-def test_loadedData_all():
-    LOGGER.debug("RUN test_loadedData_all")
-    handle = DataHandler(RANGE_OF_VALUES)
-    data = handle.get_data()
-    for instr in ACC_CURRENCIES:
-        expected_dataframe = data[instr.value]
-        assert isinstance(expected_dataframe, pd.DataFrame)
-        assert all([x for x in expected_dataframe.columns if x == x.lower()])
-    LOGGER.debug("PASSED test_loadedData_all")
-    cleaning()
 
 def test_loadedData_unload():
     LOGGER.debug("RUN test_loadedData_unload")
-    handle = DataHandler(RANGE_OF_VALUES)
-    data = handle.load_data(ACC_CURRENCIES.EURUSD)
-    handle.unload_data()
-    for instr in ACC_CURRENCIES: 
-        assert instr.value not in handle.data.keys()
+    data_handler = DataHandler(RANGE_OF_VALUES)
+    handle = data_handler.dataframes[CURRENCIES.EURUSD]
+    handle.load()
+    handle.unload()
+    for instr in CURRENCIES:
+        assert not data_handler.dataframes[instr].data
     LOGGER.debug("PASSED test_loadedData_unload")
     cleaning()

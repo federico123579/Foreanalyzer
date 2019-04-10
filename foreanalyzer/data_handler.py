@@ -39,7 +39,7 @@ class Dataframe(object):
     """Dataframe class"""
 
     def __init__(self, currency, range_of_values: int):
-        if currency not in foreanalyzer._internal_utils.CURRENCIES:
+        if currency not in foreanalyzer._internal_utils.CURRENCY:
             raise ValueError("Instrument not accepted")
         # feeder
         self._folder = os.path.join(
@@ -69,7 +69,7 @@ class DataHandler(object):
     def __init__(self, range_of_values: int):
         self.dataframes = {}
         self.range_of_values = range_of_values
-        for currency in foreanalyzer._internal_utils.CURRENCIES:
+        for currency in foreanalyzer._internal_utils.CURRENCY:
             self.dataframes[currency] = Dataframe(currency, range_of_values)
 
 

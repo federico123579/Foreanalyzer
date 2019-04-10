@@ -17,7 +17,7 @@ LOGGER = logging.getLogger("foreanalyzer.internal")
 
 
 # accepted currencies in analyzer
-class CURRENCIES(Enum):
+class CURRENCY(Enum):
     AUDUSD = "AUDUSD"
     EURCHF = "EURCHF"
     EURGBP = "EURGBP"
@@ -29,15 +29,15 @@ class CURRENCIES(Enum):
     USDJPY = "USDJPY"
 
 
-# accepted mode in analyzer
+# accepted modes in analyzer
 class MODE(Enum):
-    BUY = 'buy'
-    SELL = 'sell'
+    buy = 0
+    sell = 1
 
 
 FOLDER_PATH = os.path.dirname(__file__)
 OUTER_FOLDER_PATH = os.path.dirname(os.path.dirname(__file__))
-STR_CURRENCIES = [x.value for x in CURRENCIES]
+STR_CURRENCIES = [x.value for x in CURRENCY]
 INVERTED_MODE = {'buy': 'sell', 'sell': 'buy'}
 
 
@@ -67,3 +67,17 @@ def unzip_data(folder, zip_file_basename: str):
         basename = os.path.join(new_folder, zip_file_basename)
         os.rename(basename + '.txt', basename + '.csv')
         return 1
+
+
+class SingletonMeta(type):
+    """
+    Define an Instance operation that lets clients access its unique
+    instance.
+    """
+
+    _instance = None
+
+    def __call__(cls):
+        if cls._instance is None:
+            cls._instance = super().__call__()
+        return cls._instance

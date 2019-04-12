@@ -5,9 +5,13 @@ foreanalyzer.account
 Store the simulated Account object.
 """
 
+import logging
+
 from foreanalyzer import exceptions
-from foreanalyzer._internal_utils import CURRENCY, MODE
+from foreanalyzer._internal_utils import CURRENCY, MODE, STATE
 from foreanalyzer.api_handler import ApiClient
+
+LOGGER = logging.getLogger("foreanalyzer.account")
 
 
 class Trade(object):
@@ -20,12 +24,22 @@ class Trade(object):
         self.trade_id = trade_id
         self.op_price = op_price
         self.cl_price = None
+        self.state = STATE.OPEN
+        LOGGER.debug(f"inited Trade #{self.trade_id}")
 
     def get_profit(self, cl_price):
         self.cl_price = cl_price
-        return ApiClient().api.get_profit_calculation(
+        profit = ApiClient().api.get_profit_calculation(
             self.symbol.value, self.mode.value, self.volume, self.op_price,
             self.cl_price)['profit']
+        LOGGER.debug(f"{profit}€ profit got")
+        return profit
+
+    def close(self, cl_price):
+        profit = self.get_profit(cl_price)
+        self.state = STATE.CLOSED
+        LOGGER.debug(f"trade #{self.trade_id} closed")
+        return profit
 
 
 class Account(object):
@@ -41,6 +55,17 @@ class Account(object):
         # for id assignment
         self._trade_count = 0
         self.positions = {}
+        LOGGER.debug("Account inited")
+
+    def setup(self):
+        """start api handler"""
+        self.client.setup()
+        LOGGER.debug(f"{self.__class__.__name__} setup")
+
+    def shutdown(self):
+        """stop api handler"""
+        self.client.shutdown()
+        LOGGER.debug(f"{self.__class__.__name__} shutdown")
 
     def open_trade(self, symbol, mode, volume, op_price):
         """open trade virtually"""
@@ -49,18 +74,21 @@ class Account(object):
         trade = Trade(symbol, mode, volume, op_price, self._trade_count)
         self.positions[trade.trade_id] = trade
         self._trade_count += 1
+        LOGGER.info(f"trade of {volume} {symbol} #{trade.trade_id} opened")
+        return trade
 
     def close_trade(self, trade_id, cl_price):
         """close virtual trade"""
         trade = self.positions[trade_id]
-        profit = trade.get_profit(cl_price)
+        profit = trade.close(cl_price)
         if self.funds + profit < 0:
             self.funds = 0
             raise exceptions.FundsExhausted()
         else:
             self.funds += profit
         self.positions.pop(trade_id, None)
-        return self.funds
+        LOGGER.info(f"trade #{trade.trade_id} closed with profit {profit}€")
+        return profit
 
 #     @property
 #     def used_funds(self):

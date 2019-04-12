@@ -35,6 +35,12 @@ class MODE(Enum):
     sell = 1
 
 
+# states of trades
+class STATE(Enum):
+    OPEN = 1
+    CLOSED = 0
+
+
 FOLDER_PATH = os.path.dirname(__file__)
 OUTER_FOLDER_PATH = os.path.dirname(os.path.dirname(__file__))
 STR_CURRENCIES = [x.value for x in CURRENCY]
@@ -46,7 +52,7 @@ def read_config():
     filename = os.path.join(OUTER_FOLDER_PATH, 'config.yml')
     with open(filename, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    LOGGER.debug("read logger")
+    LOGGER.debug("read config")
     return config
 
 

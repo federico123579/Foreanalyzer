@@ -16,6 +16,13 @@ class FundsExhausted(Exception):
         LOGGER.warning(self.msg)
         super().__init__(self.msg)
 
+
+class LoginFailed(Exception):
+    def __init__(self):
+        self.msg = "Login failed"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)
+
 # class OrderAborted(Exception):
 #     def __init__(self):
 #         self.msg = "Order aborted"

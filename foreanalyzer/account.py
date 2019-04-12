@@ -42,7 +42,7 @@ class Trade(object):
         return profit
 
 
-class Account(object):
+class Account(internal.StatusComponent):
     """virtual account"""
 
     def __init__(self, initial_funds):
@@ -55,20 +55,18 @@ class Account(object):
         # for id assignment
         self._trade_count = 0
         self.positions = {}
-        self.status = internal.STATUS.OFF
+        super().__init__()
         LOGGER.debug("Account inited")
 
     def setup(self):
         """start api handler"""
         self.client.setup()
-        self.status = internal.STATUS.ON
-        LOGGER.debug(f"{self.__class__.__name__} setup")
+        super().setup()
 
     def shutdown(self):
         """stop api handler"""
         self.client.shutdown()
-        self.status = internal.STATUS.OFF
-        LOGGER.debug(f"{self.__class__.__name__} shutdown")
+        super().shutdown()
 
     def _check_status(self):
         """check if set up"""

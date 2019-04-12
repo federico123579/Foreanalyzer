@@ -93,3 +93,18 @@ class SingletonMeta(type):
         if cls._instance is None:
             cls._instance = super().__call__()
         return cls._instance
+
+
+class StatusComponent(object):
+    """class for components with status"""
+
+    def __init__(self):
+        self.status = STATUS.OFF
+
+    def setup(self):
+        self.status = STATUS.ON
+        LOGGER.debug(f"{self.__class__.__name__} setup")
+
+    def shutdown(self):
+        self.status = STATUS.OFF
+        LOGGER.debug(f"{self.__class__.__name__} shutdown")

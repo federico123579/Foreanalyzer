@@ -17,7 +17,7 @@ LOGGER = logging.getLogger("foreanalyzer.api_handler")
 
 
 class ApiClient(metaclass=internal.SingletonMeta):
-    """handler of Api"""
+    """handler of Api, use only for singleton"""
 
     def __init__(self):
         self.api = Client()
@@ -25,6 +25,9 @@ class ApiClient(metaclass=internal.SingletonMeta):
 
     def setup(self):
         """login with credentials in config"""
+        if self.status == internal.STATUS.ON:
+            LOGGER.debug("ApiClient already setup")
+            return
         config = internal.read_config()['account']
         try:
             response = self.api.login(config['username'], config['password'])
@@ -36,6 +39,9 @@ class ApiClient(metaclass=internal.SingletonMeta):
 
     def shutdown(self):
         """logout for symmetry"""
+        if self.status == internal.STATUS.OFF:
+            LOGGER.debug("ApiClient already shutdown")
+            return
         response = self.api.logout()
         self.status = internal.STATUS.OFF
         LOGGER.debug(f"{self.__class__.__name__} shutdown")

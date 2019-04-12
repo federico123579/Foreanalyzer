@@ -35,6 +35,12 @@ class MODE(Enum):
     sell = 1
 
 
+# status of components
+class STATUS(Enum):
+    OFF = 0
+    ON = 1
+
+
 # states of trades
 class STATE(Enum):
     OPEN = 1

@@ -7,8 +7,8 @@ Store the simulated Account object.
 
 import logging
 
+import foreanalyzer._internal_utils as internal
 from foreanalyzer import exceptions
-from foreanalyzer._internal_utils import CURRENCY, MODE, STATE
 from foreanalyzer.api_handler import ApiClient
 
 LOGGER = logging.getLogger("foreanalyzer.account")
@@ -24,7 +24,7 @@ class Trade(object):
         self.trade_id = trade_id
         self.op_price = op_price
         self.cl_price = None
-        self.state = STATE.OPEN
+        self.state = internal.STATE.OPEN
         LOGGER.debug(f"inited Trade #{self.trade_id}")
 
     def get_profit(self, cl_price):
@@ -37,7 +37,7 @@ class Trade(object):
 
     def close(self, cl_price):
         profit = self.get_profit(cl_price)
-        self.state = STATE.CLOSED
+        self.state = internal.STATE.CLOSED
         LOGGER.debug(f"trade #{self.trade_id} closed")
         return profit
 
@@ -55,22 +55,32 @@ class Account(object):
         # for id assignment
         self._trade_count = 0
         self.positions = {}
+        self.status = internal.STATUS.OFF
         LOGGER.debug("Account inited")
 
     def setup(self):
         """start api handler"""
         self.client.setup()
+        self.status = internal.STATUS.ON
         LOGGER.debug(f"{self.__class__.__name__} setup")
 
     def shutdown(self):
         """stop api handler"""
         self.client.shutdown()
+        self.status = internal.STATUS.OFF
         LOGGER.debug(f"{self.__class__.__name__} shutdown")
+
+    def _check_status(self):
+        """check if set up"""
+        if self.status == internal.STATUS.OFF:
+            raise exceptions.NotLogged()
+        else:
+            pass
 
     def open_trade(self, symbol, mode, volume, op_price):
         """open trade virtually"""
-        assert symbol in CURRENCY
-        assert mode in MODE
+        assert symbol in internal.CURRENCY
+        assert mode in internal.MODE
         trade = Trade(symbol, mode, volume, op_price, self._trade_count)
         self.positions[trade.trade_id] = trade
         self._trade_count += 1
@@ -79,6 +89,7 @@ class Account(object):
 
     def close_trade(self, trade_id, cl_price):
         """close virtual trade"""
+        self._check_status()
         trade = self.positions[trade_id]
         profit = trade.close(cl_price)
         if self.funds + profit < 0:

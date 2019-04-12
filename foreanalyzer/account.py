@@ -45,16 +45,17 @@ class Trade(object):
 class Account(internal.StatusComponent):
     """virtual account"""
 
-    def __init__(self, initial_funds):
-        if not isinstance(initial_funds, int):
-            raise ValueError("initial funds must be an int")
+    def __init__(self, initial_balance):
+        if not isinstance(initial_balance, int):
+            raise ValueError("initial balance must be an int")
         self.client = ApiClient()
         self.api = self.client.api
-        self.initial_funds = initial_funds
-        self.funds = initial_funds
+        # account data
+        self.initial_balance = initial_balance
+        self.balance = initial_balance
+        self.positions = {}
         # for id assignment
         self._trade_count = 0
-        self.positions = {}
         super().__init__()
         LOGGER.debug("Account inited")
 
@@ -77,6 +78,7 @@ class Account(internal.StatusComponent):
 
     def open_trade(self, symbol, mode, volume, op_price):
         """open trade virtually"""
+        self._check_status()
         assert symbol in internal.CURRENCY
         assert mode in internal.MODE
         trade = Trade(symbol, mode, volume, op_price, self._trade_count)
@@ -90,18 +92,18 @@ class Account(internal.StatusComponent):
         self._check_status()
         trade = self.positions[trade_id]
         profit = trade.close(cl_price)
-        if self.funds + profit < 0:
-            self.funds = 0
+        if self.balance + profit < 0:
+            self.balance = 0
             raise exceptions.FundsExhausted()
         else:
-            self.funds += profit
+            self.balance += profit
         self.positions.pop(trade_id, None)
         LOGGER.info(f"trade #{trade.trade_id} closed with profit {profit}€")
         return profit
 
 #     @property
 #     def used_funds(self):
-#         """used funds"""
+#         """used balance"""
 #         if len(self.positions) > 0:
 #             return sum(x.used_funds for x in self.positions)
 #         else:
@@ -109,8 +111,8 @@ class Account(internal.StatusComponent):
 #
 #     @property
 #     def free_funds(self):
-#         """free funds"""
-#         return self.funds - self.used_funds
+#         """free balance"""
+#         return self.balance - self.used_funds
 #
 #     def update_price(self, instrument):
 #         """update price of price_tables"""
@@ -144,11 +146,11 @@ class Account(internal.StatusComponent):
 #
 #     def close_position(self, position):
 #         gain = position.gain
-#         if self.funds + gain < 0:
-#             self.funds = 0
+#         if self.balance + gain < 0:
+#             self.balance = 0
 #             raise exceptions.FundsExhausted()
 #         else:
-#             self.funds += gain
+#             self.balance += gain
 #
 #
 # class Handler(metaclass=Singleton):

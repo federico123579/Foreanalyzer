@@ -23,6 +23,13 @@ class LoginFailed(Exception):
         LOGGER.error(self.msg)
         super().__init__(self.msg)
 
+
+class NotLogged(Exception):
+    def __init__(self):
+        self.msg = "Logig needed not done yet"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)
+
 # class OrderAborted(Exception):
 #     def __init__(self):
 #         self.msg = "Order aborted"

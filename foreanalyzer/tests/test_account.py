@@ -11,6 +11,7 @@ import pytest
 
 from foreanalyzer._internal_utils import CURRENCY, MODE, STATE
 from foreanalyzer.account import Account
+from foreanalyzer.exceptions import FundsExhausted
 
 LOGGER = logging.getLogger("foreanalyzer.tests.test_account")
 DEFAULT_ACCOUNT_FUNDS = 1000
@@ -19,6 +20,7 @@ DEFAULT_MODE = MODE.buy
 DEFAULT_VOLUME = 0.4
 DEFAULT_OP_PRICE = 1.40
 DEFAULT_CL_PRICE = 1.41
+DEFAULT_CL_PRICE_FUNDS_EXHAUSTED = 0.41
 
 
 @pytest.fixture(scope="function")
@@ -65,6 +67,18 @@ def test_close_trade(setup_and_trade):
     assert profit == trade.get_profit(DEFAULT_CL_PRICE)
     assert account.funds == DEFAULT_ACCOUNT_FUNDS + profit
     LOGGER.debug("passed test_get_profit")
+
+
+def test_funds_exhausted(get_account):
+    account = get_account
+    with pytest.raises(FundsExhausted):
+        trade = account.open_trade(
+            DEFAULT_SYMBOL, DEFAULT_MODE, DEFAULT_VOLUME, DEFAULT_OP_PRICE)
+        account.setup()
+        account.close_trade(trade.trade_id, DEFAULT_CL_PRICE_FUNDS_EXHAUSTED)
+    assert account.funds == 0
+    LOGGER.debug("passed test_funds_exhausted")
+
 
 #
 #

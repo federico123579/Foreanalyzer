@@ -10,30 +10,33 @@ import logging
 import XTBApi.exceptions
 from XTBApi.api import Client
 
-import foreanalyzer._internal_utils
+import foreanalyzer._internal_utils as internal
 from foreanalyzer.exceptions import LoginFailed
 
 LOGGER = logging.getLogger("foreanalyzer.api_handler")
 
 
-class ApiClient(metaclass=foreanalyzer._internal_utils.SingletonMeta):
+class ApiClient(metaclass=internal.SingletonMeta):
     """handler of Api"""
 
     def __init__(self):
         self.api = Client()
+        self.status = internal.STATUS.OFF
 
     def setup(self):
         """login with credentials in config"""
-        config = foreanalyzer._internal_utils.read_config()['account']
+        config = internal.read_config()['account']
         try:
             response = self.api.login(config['username'], config['password'])
         except XTBApi.exceptions.CommandFailed:
             raise LoginFailed()
+        self.status = internal.STATUS.ON
         LOGGER.debug(f"{self.__class__.__name__} setup")
         return response
 
     def shutdown(self):
         """logout for symmetry"""
         response = self.api.logout()
+        self.status = internal.STATUS.OFF
         LOGGER.debug(f"{self.__class__.__name__} shutdown")
         return response

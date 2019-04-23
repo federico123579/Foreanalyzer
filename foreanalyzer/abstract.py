@@ -1,60 +1,95 @@
 """
-Foreanalyzer.newVersion.abstract
-~~~~~~~
+Foreanalyzer.abstract
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Contains all ABS for algorithm building
 """
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
-from foreanalyzer.newVersion.config import Config
+import numpy as np
 
-
-class Algorithm(metaclass=ABCMeta):
-    """class for algorithm"""
-
-    def __init__(self):
-        pass
+import foreanalyzer.exceptions as exc
 
 
-# ================================ INDICATORS =================================
-# BaseAbstractClass for Indicator and other two classes:
-# - Indicator default (with the same dataframe)
-# - Indicator dedicated (with dedicated dataframe)
-# ================================ INDICATORS =================================
+# ================================ INDICATOR ==================================
+# BaseAbstractClass for Indicator with execute for calculating process
+# ================================ INDICATOR ==================================
 
 class Indicator(metaclass=ABCMeta):
-    """Indicator abstract class"""
+    """Indicator abstract implementation"""
 
-    def __init__(self):
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+        self.values = None
+
+    @abstractmethod
+    def execute(self):
+        """execute calculations"""
+
+
+class PeriodIndicator(Indicator, metaclass=ABCMeta):
+    """Indicator with period property"""
+
+    def __init__(self, dataframe, period):
+        super().__init__(dataframe)
+        self.period = period
+
+    @abstractmethod
+    def execute(self):
         pass
 
 
-class DefaultIndicator(metaclass=ABCMeta, Indicator):
-    """Indicator with same dataframe"""
+class UpDownFilter(Indicator, metaclass=ABCMeta):
+    """filter for up and down with linear indicator"""
 
-    def __init__(self, dataframe):
-        self.data = dataframe
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        np.warnings.filterwarnings('ignore')
+
+    def greater(self):
+        """if greater than this indicator"""
+        if self.values is None:
+            raise exc.IndicatorNotExecuted()
+        if len(self.dataframe) != len(self.values):
+            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
+        return np.greater(self.dataframe['close'], self.values)
+
+    def greater_equal(self):
+        """if greater or equal than this indicator"""
+        if self.values is None:
+            raise exc.IndicatorNotExecuted()
+        if len(self.dataframe) != len(self.values):
+            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
+        return np.greater_equal(self.dataframe['close'], self.values)
+
+    def less(self):
+        """if less than this indicator"""
+        if self.values is None:
+            raise exc.IndicatorNotExecuted()
+        if len(self.dataframe) != len(self.values):
+            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
+        return np.less(self.dataframe['close'], self.values)
+
+    def less_equal(self):
+        """if greater or equal than this indicator"""
+        if self.values is None:
+            raise exc.IndicatorNotExecuted()
+        if len(self.dataframe) != len(self.values):
+            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
+        return np.less_equal(self.dataframe['close'], self.values)
+
+    @abstractmethod
+    def execute(self):
+        """execute calculations"""
 
 
-class DedicatedIndicator(metaclass=ABCMeta, Indicator):
-    """Indicator with dedicated dataframe"""
+# ================================ ALGORITHM ==================================
+# BaseAbstractClass for algorithm with indicator features
+# ================================ ALGORITHM ==================================
 
-    def __init__(self, currency):
-        self.data = Dataframe(currency)
-        super().__init__()
+class BaseAlgorithm(metaclass=ABCMeta):
+    """Algorithm abstract implementation"""
 
-
-# ================================== DATAFRAME ================================
-# Dataframe with data of currencies.
-# =============================================================================
-
-class DataframePool(metaclass=ABCMeta):
-    """pool of Dataframes"""
-
-    def __init__(self, currencies):
-        self.currencies = currencies
-
-
-
+    def __init__(self):
+        pass

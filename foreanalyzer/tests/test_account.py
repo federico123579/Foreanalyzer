@@ -6,6 +6,7 @@ Test account.
 """
 
 import logging
+import time
 
 import pytest
 
@@ -17,10 +18,11 @@ LOGGER = logging.getLogger("foreanalyzer.tests.test_account")
 DEFAULT_ACCOUNT_BALANCE = 1000
 DEFAULT_SYMBOL = CURRENCY.EURUSD
 DEFAULT_MODE = MODE.buy
-DEFAULT_VOLUME = 0.4
+DEFAULT_VOLUME = 0.5
 DEFAULT_OP_PRICE = 1.40
 DEFAULT_CL_PRICE = 1.41
 DEFAULT_CL_PRICE_BALANCE_EXHAUSTED = 0.41
+DEFAULT_TRADES_TO_EVALUATE = 10
 
 
 @pytest.fixture(scope="function")
@@ -51,9 +53,19 @@ def test_open_trade(get_account):
     LOGGER.debug("passed test_open_trade")
 
 
+def test_close_trade(setup_and_trade):
+    account, trade = setup_and_trade
+    account.close_trade(trade.trade_id, DEFAULT_CL_PRICE)
+    assert trade.state == STATE.CLOSED
+    # assert profit == trade.get_profit(DEFAULT_CL_PRICE)
+    # assert account.balance == DEFAULT_ACCOUNT_BALANCE + profit
+    LOGGER.debug("passed test_get_profit")
+
+
 def test_get_profit(setup_and_trade):
     account, trade = setup_and_trade
-    profit = trade.get_profit(DEFAULT_CL_PRICE)
+    trade.close(DEFAULT_CL_PRICE)
+    profit = trade.get_profit()
     assert profit >= 0
     theoretical_profit = account.api.get_profit_calculation(
         DEFAULT_SYMBOL.value, DEFAULT_MODE.value, DEFAULT_VOLUME,
@@ -62,13 +74,24 @@ def test_get_profit(setup_and_trade):
     LOGGER.debug("passed test_get_profit")
 
 
-def test_close_trade(setup_and_trade):
-    account, trade = setup_and_trade
-    profit = account.close_trade(trade.trade_id, DEFAULT_CL_PRICE)
-    assert trade.state == STATE.CLOSED
-    assert profit == trade.get_profit(DEFAULT_CL_PRICE)
-    assert account.balance == DEFAULT_ACCOUNT_BALANCE + profit
-    LOGGER.debug("passed test_get_profit")
+def test_evaluate_trades(get_account):
+    account = get_account
+    account.setup()
+    # open and close five test trades
+    start = time.time()
+    for _ in range(DEFAULT_TRADES_TO_EVALUATE):
+        trade = account.open_trade(DEFAULT_SYMBOL, DEFAULT_MODE,
+                                   DEFAULT_VOLUME, DEFAULT_OP_PRICE)
+        account.close_trade(trade.trade_id, DEFAULT_CL_PRICE)
+    end = time.time()
+    LOGGER.debug(f"opened {DEFAULT_TRADES_TO_EVALUATE} trades in "
+                 f"{end - start} sec")
+    # evaluate
+    LOGGER.debug("evaluating...")
+    start = time.time()
+    account.evaluate_trades()
+    end = time.time()
+    LOGGER.debug(f"evaluated trades in {end - start}")
 
 
 def test_balance_exhausted(get_account):
@@ -76,112 +99,7 @@ def test_balance_exhausted(get_account):
     with pytest.raises(FundsExhausted):
         trade = account.open_trade(
             DEFAULT_SYMBOL, DEFAULT_MODE, DEFAULT_VOLUME, DEFAULT_OP_PRICE)
-        account.setup()
         account.close_trade(trade.trade_id, DEFAULT_CL_PRICE_BALANCE_EXHAUSTED)
+        account.evaluate_trades()
     assert account.balance == 0
     LOGGER.debug("passed test_balance_exhausted")
-
-
-#
-#
-# orders = []
-# orders_1 = [[MODE.BUY, x, 5000] for x in CURRENCIES]
-# orders_2 = [[MODE.BUY, x, 1] for x in CURRENCIES]
-# orders.extend(orders_1)
-# orders.extend(orders_2)
-#
-#
-# @pytest.fixture(scope="function", params=orders)
-# def get_lot_orders(request):
-#     param = request.param
-#     yield param
-#
-#
-# def test_make_order(get_account, get_lot_orders):
-#     """test the big function of make order"""
-#     LOGGER.debug("RUN test_make_order")
-#     # PARAMS
-#     acc = get_account
-#     param = get_lot_orders
-#     # make order
-#     acc.update_price(param[1])
-#     order = acc.make_order(param[0], param[1], param[2])
-#     # order in list of positions
-#     assert order in acc.positions
-#     # name in instruments used
-#     assert param[1] == order.instrument
-#     assert param[1] in acc.instruments
-#     # spread applied
-#     assert hasattr(order, 'spread')
-#     # quantity respected
-#     assert (order.quantity >= CURRENCY[param[1].value].min_quantity
-#             or order.quantity == 0)
-#     # margin applied based on margin_mode
-#     if acc.margin_mode == 'beginner':
-#         assert order.margin == CURRENCY[param[1].value].stnd_margin
-#     elif acc.margin_mode == 'pro':
-#         assert order.margin == CURRENCY[param[1].value].pro_margin
-#     # balance used updated
-#     LOGGER.debug("RESULT test_used_funds - {}".format(order.used_funds))
-#     assert acc.used_funds == order.used_funds
-#     # balance free updated
-#     assert acc.free_funds == acc.initial_funds - acc.used_funds
-#     # position gain
-#     acc.update_price(param[1])
-#     if order.mode == MODE.BUY:
-#         pure_gain = acc.price_tables[param[1]]['buy'] - order.target_price
-#     elif order.mode == MODE.SELL:
-#         pure_gain = order.target_price - acc.price_tables[param[1]]['sell']
-#     assert order.gain == order.quantity * pure_gain / order.conv_rate
-#     LOGGER.debug("RESULT test_gain - {}".format(order.gain))
-#     LOGGER.debug("PASSED test_make_order of {}".format(param[1]))
-#
-#
-# def test_funds_overcharge(get_account):
-#     """test the balance if the order is too big"""
-#     LOGGER.debug("RUN test_funds_overcharge")
-#     # PARAM
-#     acc = get_account
-#     # make order
-#     acc.update_price(CURRENCY.USDJPY)
-#     # raise
-#     with pytest.raises(OrderAborted):
-#         acc.make_order(MODE.BUY, CURRENCY.USDJPY, 5000000)
-#     LOGGER.debug("PASSED test_funds_overcharge")
-#
-#
-# def test_balance_exhausted():
-#     """test if raise exception on balance exhausted"""
-#     LOGGER.debug("RUN test_balance_exhausted")
-#     acc = Account('beginner', 200)
-#     EURUSD = CURRENCY.EURUSD
-#     acc.update_price(EURUSD)
-#     acc.make_order(MODE.BUY, EURUSD, 5000)
-#     acc.price_tables[CURRENCY.EURUSD]['buy'] = 0.00001
-#     acc.price_tables[CURRENCY.EURUSD]['sell'] = 0.000009
-#     with pytest.raises(FundsExhausted):
-#         acc.positions[0].close()
-#     assert acc.balance == 0
-#     LOGGER.debug("PASSED test_balance_exhausted")
-#
-#
-#
-# def test_close_positon():
-#     """test closing of a position"""
-#     LOGGER.debug("RUN test_close_position")
-#     # PARAM
-#     acc = Account("beginner", 1000)
-#     # make order
-#     acc.update_price(CURRENCY.EURUSD)
-#     balance = acc.balance
-#     LOGGER.debug("RESULT balance - {}".format(balance))
-#     acc.make_order(MODE.BUY, CURRENCY.EURUSD, 5000)
-#     # compare gain with balance
-#     LOGGER.debug("sleeping...")
-#     older_price = acc.price_tables[CURRENCY.EURUSD]['buy']
-#     acc.price_tables[CURRENCY.EURUSD]['buy'] = older_price + 0.1
-#     acc.positions[0].close()
-#     acc.price_tables[CURRENCY.EURUSD]['buy'] = older_price
-#     LOGGER.debug("RESULT acc.balance - {}".format(acc.balance))
-#     assert acc.balance != balance
-#     LOGGER.debug("PASSED test_close_position")

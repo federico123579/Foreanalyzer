@@ -45,6 +45,7 @@ class STATUS(Enum):
 class STATE(Enum):
     OPEN = 1
     CLOSED = 0
+    EVALUATED = 2
 
 
 FOLDER_PATH = os.path.dirname(__file__)

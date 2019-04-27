@@ -11,7 +11,8 @@ import pytest
 
 import foreanalyzer.exceptions as exc
 from foreanalyzer._internal_utils import CURRENCY
-from foreanalyzer.algorithm import SMA, BaseAlgorithmToConf, SimpleAlgorithm001
+from foreanalyzer.algo_components import SMA
+from foreanalyzer.algorithm import BaseAlgorithmToConf, SimpleAlgorithm001
 from foreanalyzer.data_handler import DataHandler
 
 LOGGER = logging.getLogger("foreanalyzer.tests.test_algorithm")

@@ -13,6 +13,8 @@ from enum import Enum
 
 import yaml
 
+from foreanalyzer.exceptions import CurrencyNotListed
+
 LOGGER = logging.getLogger("foreanalyzer.internal")
 
 
@@ -80,6 +82,17 @@ def unzip_data(folder, zip_file_basename: str):
         basename = os.path.join(new_folder, zip_file_basename)
         os.rename(basename + '.txt', basename + '.csv')
         return 1
+
+
+def conv_str_enum(string_to_conv, enu_to_conv):
+    if not isinstance(string_to_conv, enu_to_conv):
+        if string_to_conv in [x.value for x in enu_to_conv]:
+            return [curr for curr in CURRENCY
+                    if curr.value == string_to_conv][0]
+        else:
+            raise CurrencyNotListed(string_to_conv)
+    else:
+        return string_to_conv
 
 
 class SingletonMeta(type):

@@ -7,11 +7,29 @@ Base algorithm module.
 
 import logging
 
+import foreanalyzer._internal_utils as internal
 import foreanalyzer.abstract as abstract
+import foreanalyzer.exceptions as exc
+from foreanalyzer.data_handler import DataHandler
 
 LOGGER = logging.getLogger("foreanalyzer.algo")
 
 
+# ============================== ALGO DATAFRAMES ==============================
+# algo dataframes for analysis of dataframes with indicators
+# ============================== ALGO DATAFRAMES ==============================
+
+class AlgoDataframe(object):
+    """dataframe for algo analysis"""
+
+    def __init__(self, currency, data):
+        self.currency = currency
+        self.data = data
+        self.instruction = {}
+
+
+# ================================ INDICATORS =================================
+# all indicators and the indicator factory
 # ================================ INDICATORS =================================
 
 class SMA(abstract.PeriodIndicator, abstract.UpDownFilter):
@@ -27,7 +45,91 @@ class SMA(abstract.PeriodIndicator, abstract.UpDownFilter):
         LOGGER.debug("SMA executed")
         return self.values
 
-# ================================ INDICATORS =================================
+
+# factory of indicators
+IndicatorFactory = {
+    'SMA': SMA
+}
+
+
+# ================================= ALGORITHM =================================
+# BaseAlgorithm to configure with arguments:
+# indicators:
+#     [[SMA, [10], 'greater'], ...]
+# ================================= ALGORITHM =================================
+
+class BaseAlgorithmToConf(object):
+    """Algorithm abstract implementation"""
+
+    def __init__(self, currencies, range_of_values, indicators):
+        for indicator in indicators:
+            if indicator[0] not in [x for x in IndicatorFactory.keys()]:
+                raise exc.IndicatorNotListed(indicator[0])
+        self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
+                           for curr in currencies]
+        self._data_handler = DataHandler(range_of_values)
+        self.stock_data = self._data_handler.dataframes
+        self.indicators_conf = indicators
+        self.indicators = [indicator[0] for indicator in self.indicators_conf]
+        self.instruction = {}
+        self.dataframes = {}
+        LOGGER.debug("BaseAlgorithmToConf inited")
+
+    def setup(self):
+        for currency in self.currencies:
+            self.stock_data[currency].load()
+        self._init_indicators()
+        self._execute_indicators()
+        LOGGER.debug("BaseAlgorithmToConf setup")
+
+    def _init_indicators(self):
+        """setup all indicators in dataframes"""
+        for currency in self.currencies:
+            LOGGER.debug(f"setting indicators for {currency.value}")
+            df = AlgoDataframe(currency, self.stock_data[currency].data)
+            self.dataframes[currency] = df
+            for indicator in self.indicators_conf:
+                LOGGER.debug(f"setting {indicator} for {currency}")
+                setattr(df, indicator[0], IndicatorFactory[indicator[0]](
+                    df.data, *indicator[1]))
+                if not hasattr(getattr(df, indicator[0]), indicator[2]):
+                    raise exc.IndicatorError()
+                self.instruction[indicator[0]] = indicator[2]
+                LOGGER.debug(
+                    f"{indicator[0]} indicator setup with {indicator[1]} "
+                    f"with {indicator[2]}")
+
+    def _execute_indicators(self):
+        """execute all indicatos"""
+        for currency in self.currencies:
+            for indicator in self.indicators:
+                LOGGER.debug(f"executing {indicator} for {currency}")
+                getattr(self.dataframes[currency], indicator).execute()
+
+
+class BaseAlgorithmConfigured(BaseAlgorithmToConf):
+    """Algorithm abstract class configured from configuration file"""
+
+    def __init__(self, name):
+        config = internal.read_config()
+        if name not in config.keys():
+            raise ValueError(f"{name} not in config")
+        self.config = config[name]
+        currencies = self.config['currencies']
+        range_of_values = self.config['range_of_values']
+        indicators = [[indicator['name'], [arg for _, arg in indicator[
+            'arguments'].items()], indicator['scope']] for indicator in
+                      self.config['indicators']]
+        super().__init__(currencies, range_of_values, indicators)
+        LOGGER.debug("Algorithm with preconfigured file inited")
+
+
+class SimpleAlgorithm001(BaseAlgorithmConfigured):
+    """Simple Moving Average"""
+
+    def __init__(self):
+        super().__init__(self.__class__.__name__)
+        LOGGER.debug(f"SimpleAlgorithm001 inited")
 
 
 # import numpy

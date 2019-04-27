@@ -44,6 +44,28 @@ class IndicatorLenError(Exception):
         LOGGER.error(self.msg)
         super().__init__(self.msg)
 
+
+class CurrencyNotListed(Exception):
+    def __init__(self, currency):
+        self.msg = f"Currency {currency} not listed"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)
+
+
+class IndicatorNotListed(Exception):
+    def __init__(self, indicator):
+        self.msg = f"Indicator {indicator} not listed"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)
+
+
+class IndicatorError(Exception):
+    def __init__(self):
+        self.msg = "Indicator error (may be the filter)"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)
+
+
 # class OrderAborted(Exception):
 #     def __init__(self):
 #         self.msg = "Order aborted"

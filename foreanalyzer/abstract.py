@@ -82,14 +82,3 @@ class UpDownFilter(Indicator, metaclass=ABCMeta):
     @abstractmethod
     def execute(self):
         """execute calculations"""
-
-
-# ================================ ALGORITHM ==================================
-# BaseAbstractClass for algorithm with indicator features
-# ================================ ALGORITHM ==================================
-
-class BaseAlgorithm(metaclass=ABCMeta):
-    """Algorithm abstract implementation"""
-
-    def __init__(self):
-        pass

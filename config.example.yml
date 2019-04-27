@@ -1,3 +1,15 @@
+# ====== ACCOUNT CONFIUGRATION ======
 account:
   username: username
   password: password
+
+# ====== ALGORITHM CONFIGURATION ======
+AlgortihmName:
+  currencies:
+    - currency_name
+  range_of_values: int
+  indicators:
+    - name: name_of_indicator
+      arguments:
+        period: 10
+      scope: greater

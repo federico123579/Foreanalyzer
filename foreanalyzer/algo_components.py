@@ -23,7 +23,7 @@ class Indicator(metaclass=ABCMeta):
     """Indicator abstract implementation"""
 
     def __init__(self, dataframe):
-        self.dataframe = dataframe
+        self.dataframe = dataframe.copy()
         self.values = None
 
     @abstractmethod
@@ -45,41 +45,42 @@ class PeriodIndicator(Indicator, metaclass=ABCMeta):
 
 # ================================== FILTER ===================================
 # Filter for conditions for making order
+# Inherited from an Indicator.
 # ================================== FILTER ===================================
 
-class UpDownFilter(Indicator, metaclass=ABCMeta):
+class AboveBelowFilter(Indicator, metaclass=ABCMeta):
     """filter for up and down with linear indicator"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         np.warnings.filterwarnings('ignore')
 
-    def greater(self):
-        """if greater than this indicator"""
+    def above(self):
+        """if above than this indicator"""
         if self.values is None:
             raise exc.IndicatorNotExecuted()
         if len(self.dataframe) != len(self.values):
             raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
         return np.greater(self.dataframe['close'], self.values)
 
-    def greater_equal(self):
-        """if greater or equal than this indicator"""
+    def above_equal(self):
+        """if above or equal than this indicator"""
         if self.values is None:
             raise exc.IndicatorNotExecuted()
         if len(self.dataframe) != len(self.values):
             raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
         return np.greater_equal(self.dataframe['close'], self.values)
 
-    def less(self):
-        """if less than this indicator"""
+    def below(self):
+        """if below than this indicator"""
         if self.values is None:
             raise exc.IndicatorNotExecuted()
         if len(self.dataframe) != len(self.values):
             raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
         return np.less(self.dataframe['close'], self.values)
 
-    def less_equal(self):
-        """if greater or equal than this indicator"""
+    def below_equal(self):
+        """if above or equal than this indicator"""
         if self.values is None:
             raise exc.IndicatorNotExecuted()
         if len(self.dataframe) != len(self.values):
@@ -91,14 +92,68 @@ class UpDownFilter(Indicator, metaclass=ABCMeta):
         """execute calculations"""
 
 
+# ================================== TRIGGER ==================================
+# Trigger that set the event which make the order
+#
+# - I trigger possono essere molteplici nell'algoritmo perché possono esserci
+#   più condizioni perché un trade diventi vantaggioso.
+# - Possono essere periodici (tipo compra ogni ora) o event-driven (tipo
+#   compra quando si verifica una determinata circostanza) ma comunque un
+#   trigger dovrà controllare in modo periodico la situazione della borsa.
+# - Si scremano i dati in base a ciò che individua l'algoritmo nel periodo
+#   di controllo del trigger (quindi si eliminano i valori di intervallo più
+#   brevi del'attesa del trigger.
+# ================================== TRIGGER ==================================
+
+class Trigger(Indicator, metaclass=ABCMeta):
+    """abstract trigger"""
+
+    def __init__(self, dataframe):
+        super().__init__(dataframe)
+
+    @abstractmethod
+    def execute(self):
+        """execute calculations"""
+
+
+class SimplePeriodTrigger(Trigger):
+    """simple timer"""
+
+    def __init__(self, dataframe, interval):
+        """
+        :param interval: time in seconds
+        """
+        super().__init__(dataframe)
+        self.interval = interval
+        LOGGER.debug(f"SimplePeriodTrigger inited with interval of {interval}")
+
+    # noinspection PyTypeChecker
+    def execute(self):
+        timestamp = self.dataframe['timestamp']
+        while any(timestamp.diff().dropna().dt.seconds < self.interval):
+            # get temp series with new index of timestamps
+            tm = timestamp[timestamp.diff().dt.seconds <
+                           self.interval].reset_index()
+            if len(tm) == 1:  # drop last value
+                tm.drop(0)
+            else:  # drop values even so do not delete all next
+                timestamp.drop(
+                    tm[tm.index.map(lambda x: int(x) % 2 == 0)]['index'],
+                    inplace=True)
+        self.dataframe = self.dataframe.iloc[timestamp.index]
+        LOGGER.debug(f"SimplePeriodTrigger executed and reduced to "
+                     f"{len(self.dataframe)}")
+        return self.dataframe
+
+
 # ============================== REAL INDICATOR ===============================
 
-class SMA(PeriodIndicator, UpDownFilter):
+class SMA(PeriodIndicator, AboveBelowFilter):
     """Simple Moving Average"""
 
     def __init__(self, dataframe, period):
         PeriodIndicator.__init__(self, dataframe, period)
-        UpDownFilter.__init__(self, dataframe)
+        AboveBelowFilter.__init__(self, dataframe)
         LOGGER.debug(f"SMA inited with period {period}")
 
     def execute(self):

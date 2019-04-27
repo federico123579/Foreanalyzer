@@ -12,4 +12,4 @@ AlgortihmName:
     - name: name_of_indicator
       arguments:
         period: 10
-      scope: greater
+      scope: above

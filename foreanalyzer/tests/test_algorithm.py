@@ -9,9 +9,9 @@ import logging
 
 import pytest
 
+import foreanalyzer.algo_components as algocomp
 import foreanalyzer.exceptions as exc
 from foreanalyzer._internal_utils import CURRENCY
-from foreanalyzer.algo_components import SMA
 from foreanalyzer.algorithm import BaseAlgorithmToConf, SimpleAlgorithm001
 from foreanalyzer.data_handler import DataHandler
 
@@ -20,36 +20,66 @@ DEFAULT_CURRENCY = CURRENCY.EURUSD
 DEFAULT_RANGE = 1000
 
 
-def test_SMA():
+@pytest.fixture(scope="module")
+def _get_dataframe():
+    return DataHandler(1000).dataframes[DEFAULT_CURRENCY].load().copy()
+
+
+# ============================== TEST INDICATORS ==============================
+
+
+def test_SMA(_get_dataframe):
     period = 10
-    df = DataHandler(1000).dataframes[DEFAULT_CURRENCY].load()
+    df = _get_dataframe
     sma = df['close'].rolling(period).mean()
-    sma_indicator = SMA(df, period)
+    sma_indicator = algocomp.SMA(df, period)
     assert sma.equals(sma_indicator.execute())
-    sma_indicator.greater()
-    sma_indicator.greater_equal()
-    sma_indicator.less()
-    sma_indicator.less_equal()
+    sma_indicator.above()
+    sma_indicator.above_equal()
+    sma_indicator.below()
+    sma_indicator.below_equal()
     df['sma'] = sma
     LOGGER.debug(f"{df.iloc[-1]}")
 
 
+# =============================== TEST TRIGGERS ===============================
+
+periods = [60, 120, 600, 3600]
+
+
+@pytest.fixture(params=periods)
+def _get_period(request):
+    yield request.param
+
+
+# noinspection PyTypeChecker
+def test_SimplePeriodTrigger(_get_period, _get_dataframe):
+    df = _get_dataframe
+    period = _get_period
+    trigger = algocomp.SimplePeriodTrigger(df, period)
+    trigger.execute()
+    assert all(trigger.dataframe['timestamp'].diff().dropna().dt.seconds >=
+               period)
+
+
+# ============================== TEST ALGORITHMS ==============================
+
 def test_baseAlgoToConf_init():
-    indicators = [['SMA', [10], 'greater']]
-    algo = BaseAlgorithmToConf(['EURUSD'], DEFAULT_RANGE, indicators)
+    indicators = [['SMA', [10], 'above']]
+    BaseAlgorithmToConf(['EURUSD'], DEFAULT_RANGE, indicators)
     with pytest.raises(exc.CurrencyNotListed):
-        algo = BaseAlgorithmToConf(['asdasd'], DEFAULT_RANGE, indicators)
+        BaseAlgorithmToConf(['test'], DEFAULT_RANGE, indicators)
     with pytest.raises(exc.IndicatorNotListed):
-        algo = BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                                   [['dasdasd', [10], 'greater']])
+        BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
+                            [['test', [10], 'above']])
     with pytest.raises(exc.IndicatorError):
         algo = BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                                   [['SMA', [10], 'asdasd']])
+                                   [['SMA', [10], 'test']])
         algo.setup()
 
 
 def test_baseAlgoToConf_setup():
-    indicators = [['SMA', [10], 'greater']]
+    indicators = [['SMA', [10], 'above']]
     algo = BaseAlgorithmToConf(['EURUSD', 'AUDUSD'], DEFAULT_RANGE, indicators)
     algo.setup()
 

@@ -8,48 +8,11 @@ Base algorithm module.
 import logging
 
 import foreanalyzer._internal_utils as internal
-import foreanalyzer.algo_components as algo_comp
 import foreanalyzer.exceptions as exc
+from foreanalyzer.algo_components import AlgoDataframe, IndicatorFactory
 from foreanalyzer.data_handler import DataHandler
 
 LOGGER = logging.getLogger("foreanalyzer.algo")
-
-
-# ============================== ALGO DATAFRAMES ==============================
-# algo dataframes for analysis of dataframes with indicators
-# ============================== ALGO DATAFRAMES ==============================
-
-class AlgoDataframe(object):
-    """dataframe for algo analysis"""
-
-    def __init__(self, currency, data):
-        self.currency = currency
-        self.data = data
-        self.instruction = {}
-
-
-# ================================ INDICATORS =================================
-# all indicators and the indicator factory
-# ================================ INDICATORS =================================
-
-class SMA(algo_comp.PeriodIndicator, algo_comp.UpDownFilter):
-    """Simple Moving Average"""
-
-    def __init__(self, dataframe, period):
-        algo_comp.PeriodIndicator.__init__(self, dataframe, period)
-        algo_comp.UpDownFilter.__init__(self, dataframe)
-        LOGGER.debug(f"SMA inited with period {period}")
-
-    def execute(self):
-        self.values = self.dataframe['close'].rolling(self.period).mean()
-        LOGGER.debug("SMA executed")
-        return self.values
-
-
-# factory of indicators
-IndicatorFactory = {
-    'SMA': SMA
-}
 
 
 # ================================= ALGORITHM =================================

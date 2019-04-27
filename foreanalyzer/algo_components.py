@@ -5,11 +5,14 @@ Foreanalyzer.algo_components
 Contains all ABS for algorithm building
 """
 
+import logging
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
 import foreanalyzer.exceptions as exc
+
+LOGGER = logging.getLogger("foreanalyzer.algo_components")
 
 
 # ================================ INDICATOR ==================================
@@ -86,3 +89,39 @@ class UpDownFilter(Indicator, metaclass=ABCMeta):
     @abstractmethod
     def execute(self):
         """execute calculations"""
+
+
+# ============================== REAL INDICATOR ===============================
+
+class SMA(PeriodIndicator, UpDownFilter):
+    """Simple Moving Average"""
+
+    def __init__(self, dataframe, period):
+        PeriodIndicator.__init__(self, dataframe, period)
+        UpDownFilter.__init__(self, dataframe)
+        LOGGER.debug(f"SMA inited with period {period}")
+
+    def execute(self):
+        self.values = self.dataframe['close'].rolling(self.period).mean()
+        LOGGER.debug("SMA executed")
+        return self.values
+
+
+# ============================= INDICATOR FACTORY =============================
+
+IndicatorFactory = {
+    'SMA': SMA
+}
+
+
+# ============================== ALGO DATAFRAMES ==============================
+# algo dataframes for analysis of dataframes with indicators
+# ============================== ALGO DATAFRAMES ==============================
+
+class AlgoDataframe(object):
+    """dataframe for algo analysis"""
+
+    def __init__(self, currency, data):
+        self.currency = currency
+        self.data = data
+        self.instruction = {}

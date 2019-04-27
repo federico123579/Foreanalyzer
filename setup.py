@@ -24,7 +24,9 @@ VERSION = None
 REQUIRED = [
     "forex_python",
     "XTBApi",
-    "pandas", 'PyYAML', 'numpy'
+    "pandas",
+    "PyYAML",
+    "numpy"
 ]
 
 # What packages are optional?

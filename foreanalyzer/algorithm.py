@@ -18,7 +18,7 @@ LOGGER = logging.getLogger("foreanalyzer.algo")
 # ================================= ALGORITHM =================================
 # BaseAlgorithm to configure with arguments:
 # indicators:
-#     [[SMA, [10], 'greater'], ...]
+#     [[SMA, [10], 'above'], ...]
 # ================================= ALGORITHM =================================
 
 class BaseAlgorithmToConf(object):
@@ -85,6 +85,8 @@ class BaseAlgorithmConfigured(BaseAlgorithmToConf):
         super().__init__(currencies, range_of_values, indicators)
         LOGGER.debug("Algorithm with preconfigured file inited")
 
+
+# ============================== REAL ALGORITHM ===============================
 
 class SimpleAlgorithm001(BaseAlgorithmConfigured):
     """Simple Moving Average"""

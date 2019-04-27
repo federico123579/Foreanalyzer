@@ -8,7 +8,7 @@ Base algorithm module.
 import logging
 
 import foreanalyzer._internal_utils as internal
-import foreanalyzer.abstract as abstract
+import foreanalyzer.algo_components as algo_comp
 import foreanalyzer.exceptions as exc
 from foreanalyzer.data_handler import DataHandler
 
@@ -32,12 +32,12 @@ class AlgoDataframe(object):
 # all indicators and the indicator factory
 # ================================ INDICATORS =================================
 
-class SMA(abstract.PeriodIndicator, abstract.UpDownFilter):
+class SMA(algo_comp.PeriodIndicator, algo_comp.UpDownFilter):
     """Simple Moving Average"""
 
     def __init__(self, dataframe, period):
-        abstract.PeriodIndicator.__init__(self, dataframe, period)
-        abstract.UpDownFilter.__init__(self, dataframe)
+        algo_comp.PeriodIndicator.__init__(self, dataframe, period)
+        algo_comp.UpDownFilter.__init__(self, dataframe)
         LOGGER.debug(f"SMA inited with period {period}")
 
     def execute(self):
@@ -95,12 +95,11 @@ class BaseAlgorithmToConf(object):
                 if not hasattr(getattr(df, indicator[0]), indicator[2]):
                     raise exc.IndicatorError()
                 self.instruction[indicator[0]] = indicator[2]
-                LOGGER.debug(
-                    f"{indicator[0]} indicator setup with {indicator[1]} "
-                    f"with {indicator[2]}")
+                LOGGER.debug(f"{indicator[0]} indicator setup with "
+                             f"{indicator[1]} with {indicator[2]}")
 
     def _execute_indicators(self):
-        """execute all indicatos"""
+        """execute all indicators"""
         for currency in self.currencies:
             for indicator in self.indicators:
                 LOGGER.debug(f"executing {indicator} for {currency}")

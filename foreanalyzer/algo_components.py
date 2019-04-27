@@ -1,5 +1,5 @@
 """
-Foreanalyzer.abstract
+Foreanalyzer.algo_components
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Contains all ABS for algorithm building
@@ -39,6 +39,10 @@ class PeriodIndicator(Indicator, metaclass=ABCMeta):
     def execute(self):
         pass
 
+
+# ================================== FILTER ===================================
+# Filter for conditions for making order
+# ================================== FILTER ===================================
 
 class UpDownFilter(Indicator, metaclass=ABCMeta):
     """filter for up and down with linear indicator"""

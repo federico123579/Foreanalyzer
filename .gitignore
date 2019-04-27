@@ -10,3 +10,4 @@ config.yml
 .venv
 .idea/
 .ycm_extra_conf.py
+foreanalyzer/data/

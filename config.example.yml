@@ -1,4 +1,4 @@
-# ====== ACCOUNT CONFIUGRATION ======
+# ====== ACCOUNT CONFIGURATION ======
 account:
   username: username
   password: password
@@ -8,8 +8,12 @@ AlgortihmName:
   currencies:
     - currency_name
   range_of_values: int
+  trigger:
+    name: name_of_trigger
+    arguments:
+      argument: arg
   indicators:
     - name: name_of_indicator
       arguments:
-        period: 10
-      scope: above
+        argument: arg
+      scope: scope

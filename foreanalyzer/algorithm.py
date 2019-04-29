@@ -9,7 +9,8 @@ import logging
 
 import foreanalyzer._internal_utils as internal
 import foreanalyzer.exceptions as exc
-from foreanalyzer.algo_components import AlgoDataframe, IndicatorFactory
+from foreanalyzer.algo_components import \
+    AlgoDataframe, IndicatorFactory, TriggerFactory
 from foreanalyzer.data_handler import DataHandler
 
 LOGGER = logging.getLogger("foreanalyzer.algo")
@@ -18,22 +19,28 @@ LOGGER = logging.getLogger("foreanalyzer.algo")
 # ================================= ALGORITHM =================================
 # BaseAlgorithm to configure with arguments:
 # indicators:
-#     [[SMA, [10], 'above'], ...]
+#     [['SMA', [10], 'above'], ...]
+# trigger:
+#     ['SimplePeriod', [10]]
 # ================================= ALGORITHM =================================
 
 class BaseAlgorithmToConf(object):
     """Algorithm abstract implementation"""
 
-    def __init__(self, currencies, range_of_values, indicators):
+    def __init__(self, currencies, range_of_values, indicators, trigger):
         for indicator in indicators:
             if indicator[0] not in [x for x in IndicatorFactory.keys()]:
                 raise exc.IndicatorNotListed(indicator[0])
+        if trigger[0] not in TriggerFactory.keys():
+            raise exc.TriggerNotListed(trigger[0])
         self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
                            for curr in currencies]
         self._data_handler = DataHandler(range_of_values)
         self.stock_data = self._data_handler.dataframes
-        self.indicators_conf = indicators
-        self.indicators = [indicator[0] for indicator in self.indicators_conf]
+        self._indicators_conf = indicators
+        self._trigger_conf = trigger
+        self.indicators = [indicator[0] for indicator in self._indicators_conf]
+        self.trigger = None
         self.instruction = {}
         self.dataframes = {}
         LOGGER.debug("BaseAlgorithmToConf inited")
@@ -41,17 +48,35 @@ class BaseAlgorithmToConf(object):
     def setup(self):
         for currency in self.currencies:
             self.stock_data[currency].load()
+        self._init_dataframes()
+        self._init_trigger()
+        self._execute_trigger()
         self._init_indicators()
         self._execute_indicators()
         LOGGER.debug("BaseAlgorithmToConf setup")
+
+    def _init_dataframes(self):
+        """update old df to new algodataframe"""
+        for currency in self.currencies:
+            df = AlgoDataframe(currency, self.stock_data[currency].data)
+            self.dataframes[currency] = df
+
+    def _init_trigger(self):
+        """setup the trigger"""
+        for currency in self.currencies:
+            df = self.dataframes[currency]
+            LOGGER.debug(f"setting trigger for {currency.value}")
+            df.trigger = TriggerFactory[self._trigger_conf[0]](
+                df.data, *self._trigger_conf[1])
+            LOGGER.debug(f"{self._trigger_conf[0]} trigger setup with "
+                         f"{self._trigger_conf[1]}")
 
     def _init_indicators(self):
         """setup all indicators in dataframes"""
         for currency in self.currencies:
             LOGGER.debug(f"setting indicators for {currency.value}")
-            df = AlgoDataframe(currency, self.stock_data[currency].data)
-            self.dataframes[currency] = df
-            for indicator in self.indicators_conf:
+            df = self.dataframes[currency]
+            for indicator in self._indicators_conf:
                 LOGGER.debug(f"setting {indicator} for {currency}")
                 setattr(df, indicator[0], IndicatorFactory[indicator[0]](
                     df.data, *indicator[1]))
@@ -60,6 +85,13 @@ class BaseAlgorithmToConf(object):
                 self.instruction[indicator[0]] = indicator[2]
                 LOGGER.debug(f"{indicator[0]} indicator setup with "
                              f"{indicator[1]} with {indicator[2]}")
+
+    def _execute_trigger(self):
+        """execute trigger and update dataframes"""
+        for currency in self.currencies:
+            trigger = self.dataframes[currency].trigger
+            LOGGER.debug(f"executing {trigger} for {currency}")
+            self.dataframes[currency].data = trigger.execute()
 
     def _execute_indicators(self):
         """execute all indicators"""
@@ -82,7 +114,10 @@ class BaseAlgorithmConfigured(BaseAlgorithmToConf):
         indicators = [[indicator['name'], [arg for _, arg in indicator[
             'arguments'].items()], indicator['scope']] for indicator in
                       self.config['indicators']]
-        super().__init__(currencies, range_of_values, indicators)
+        trigger = [self.config['trigger']['name'],
+                   [arg for key, arg in self.config['trigger'][
+                       'arguments'].items()]]
+        super().__init__(currencies, range_of_values, indicators, trigger)
         LOGGER.debug("Algorithm with preconfigured file inited")
 
 

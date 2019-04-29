@@ -9,6 +9,7 @@ import logging
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
+import pandas as pd
 
 import foreanalyzer.exceptions as exc
 from foreanalyzer._internal_utils import STATUS
@@ -43,12 +44,29 @@ class PeriodIndicator(Indicator, metaclass=ABCMeta):
     """Indicator with period property"""
 
     def __init__(self, dataframe, period):
-        super().__init__(dataframe)
+        Indicator.__init__(self, dataframe)
         self.period = period
 
     @abstractmethod
     def _execute(self):
         pass
+
+
+class IndicatorReduced(Indicator, metaclass=ABCMeta):
+    """Indicator reduced"""
+
+    def __init__(self, dataframe, reducer_class, params):
+        Indicator.__init__(self, dataframe)
+        self.reducer = reducer_class(dataframe, *params)
+        self.full_dataframe = None
+
+    @abstractmethod
+    def _execute(self):
+        pass
+
+    @abstractmethod
+    def get_full_dataframe(self):
+        """return full dataframe"""
 
 
 # ================================== FILTER ===================================
@@ -59,8 +77,8 @@ class PeriodIndicator(Indicator, metaclass=ABCMeta):
 class AboveBelowFilter(Indicator, metaclass=ABCMeta):
     """filter for up and down with linear indicator"""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, dataframe):
+        Indicator.__init__(self, dataframe)
         np.warnings.filterwarnings('ignore')
 
     def above(self):
@@ -112,33 +130,31 @@ class AboveBelowFilter(Indicator, metaclass=ABCMeta):
 #   di controllo del trigger (quindi si eliminano i valori di intervallo più
 #   brevi del'attesa del trigger.
 # ================================== TRIGGER ==================================
-# TODO: rename to reducer
-class Trigger(Indicator, metaclass=ABCMeta):
+
+# ================================== REDUCER ==================================
+# reduce data analysis of an indicator to precise time period
+# ================================== REDUCER ==================================
+
+class Reducer(Indicator, metaclass=ABCMeta):
     """abstract trigger"""
 
-    def __init__(self, dataframe, *params):
-        super().__init__(dataframe)
+    def __init__(self, dataframe):
+        Indicator.__init__(self, dataframe)
         self.status = STATUS.OFF
 
     @abstractmethod
     def _execute(self):
         """execute calculations"""
 
-    def execute(self):
-        """execute calculations and procedures"""
-        new_df = self._execute()
-        self.status = STATUS.EXECUTED
-        return new_df
 
-
-class SimplePeriodTrigger(Trigger):
-    """simple timer"""
+class PeriodReducer(Reducer):
+    """simple period reducer"""
 
     def __init__(self, dataframe, interval):
         """
         :param interval: time in seconds
         """
-        super().__init__(dataframe)
+        Reducer.__init__(self, dataframe)
         self.interval = int(interval)
         LOGGER.debug(f"SimplePeriodTrigger inited with interval of {interval}")
 
@@ -163,28 +179,41 @@ class SimplePeriodTrigger(Trigger):
 
 # ============================== REAL INDICATOR ===============================
 
-class SMA(PeriodIndicator, AboveBelowFilter):
+class SMA(PeriodIndicator, IndicatorReduced, AboveBelowFilter):
     """Simple Moving Average"""
 
-    def __init__(self, dataframe, period):
+    def __init__(self, dataframe, period, timeframe):
+        """
+        :param period: int number
+        :param timeframe: int number of seconds
+        """
         PeriodIndicator.__init__(self, dataframe, period)
+        IndicatorReduced.__init__(self, dataframe, PeriodReducer, [timeframe])
         AboveBelowFilter.__init__(self, dataframe)
-        LOGGER.debug(f"SMA inited with period {period}")
+        LOGGER.debug(f"SMA inited with period {period} and timeframe of "
+                     f"{timeframe}")
 
     def _execute(self):
-        self.values = self.dataframe['close'].rolling(self.period).mean()
+        df = self.reducer.execute()
+        self.values = df['close'].rolling(self.period).mean()
         LOGGER.debug("SMA executed")
         return self.values
+
+    def get_full_dataframe(self):
+        if self.status != STATUS.EXECUTED:
+            raise exc.IndicatorNotExecuted()
+        df = pd.concat([self.dataframe['timestamp'], self.values],
+                       axis=1).ffill()
+        df.index = df['timestamp']
+        df.drop('timestamp', axis=1, inplace=True)
+        self.full_dataframe = df
+        return df
 
 
 # ================================= FACTORIES =================================
 
 IndicatorFactory = {
     'SMA': SMA
-}
-
-TriggerFactory = {
-    'SimplePeriod': SimplePeriodTrigger
 }
 
 

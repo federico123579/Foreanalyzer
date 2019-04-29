@@ -30,9 +30,10 @@ def _get_dataframe():
 
 def test_SMA(_get_dataframe):
     period = 10
+    timeframe = 60
     df = _get_dataframe
     sma = df['close'].rolling(period).mean()
-    sma_indicator = algocomp.SMA(df, period)
+    sma_indicator = algocomp.SMA(df, period, timeframe)
     assert sma.equals(sma_indicator.execute())
     sma_indicator.above()
     sma_indicator.above_equal()
@@ -53,10 +54,10 @@ def _get_period(request):
 
 
 # noinspection PyTypeChecker
-def test_SimplePeriodTrigger(_get_period, _get_dataframe):
+def test_PeriodReducer(_get_period, _get_dataframe):
     df = _get_dataframe
     period = _get_period
-    trigger = algocomp.SimplePeriodTrigger(df, period)
+    trigger = algocomp.PeriodReducer(df, period)
     trigger.execute()
     assert all(trigger.dataframe['timestamp'].diff().dropna().dt.seconds >=
                period)
@@ -65,37 +66,33 @@ def test_SimplePeriodTrigger(_get_period, _get_dataframe):
 # ============================== TEST ALGORITHMS ==============================
 
 def test_baseAlgoToConf_init():
-    indicators = [['SMA', [10], 'above']]
-    trigger = ['SimplePeriod', [600]]
-    BaseAlgorithmToConf(['EURUSD'], DEFAULT_RANGE, indicators, trigger)
+    indicators = [['SMA', [10, 600], 'above']]
+    BaseAlgorithmToConf(['EURUSD'], DEFAULT_RANGE, indicators)
     with pytest.raises(exc.CurrencyNotListed):
-        BaseAlgorithmToConf(['test'], DEFAULT_RANGE, indicators, trigger)
+        BaseAlgorithmToConf(['test'], DEFAULT_RANGE, indicators)
     # test error with name of instruments
     with pytest.raises(exc.IndicatorNotListed):
         BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                            [['test', [10], 'above']], trigger)
-    with pytest.raises(exc.TriggerNotListed):
-        BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                            indicators, ['test', [10]])
+                            [['test', [10, 600], 'above']])
+    # with pytest.raises(exc.TriggerNotListed):
+    #     BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
+    #                         indicators, ['test', [10]])
     # test error with scope
     with pytest.raises(exc.IndicatorError):
         algo = BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                                   [['SMA', [10], 'test']], trigger)
+                                   [['SMA', [10, 600], 'test']])
         algo.setup()
 
 
 def test_baseAlgoToConf_setup():
-    indicators = [['SMA', [10], 'above']]
-    trigger = ['SimplePeriod', [600]]
-    algo = BaseAlgorithmToConf(['EURUSD', 'AUDUSD'], DEFAULT_RANGE,
-                               indicators, trigger)
+    indicators = [['SMA', [10, 600], 'above']]
+    algo = BaseAlgorithmToConf(['EURUSD', 'AUDUSD'], DEFAULT_RANGE, indicators)
     algo.setup()
     for currency in algo.currencies:
         df = algo.dataframes[currency]
         assert hasattr(df, 'SMA')
         assert df.SMA.status == STATUS.EXECUTED
-        assert df.trigger.status == STATUS.EXECUTED
-        assert len(df.trigger.dataframe) == len(df.SMA.dataframe)
+        assert df.SMA.reducer.status == STATUS.EXECUTED
 
 
 def test_baseAlgoConfigured():

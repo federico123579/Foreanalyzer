@@ -8,10 +8,6 @@ AlgortihmName:
   currencies:
     - currency_name
   range_of_values: int
-  trigger:
-    name: name_of_trigger
-    arguments:
-      argument: arg
   indicators:
     - name: name_of_indicator
       arguments:

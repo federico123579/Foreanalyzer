@@ -41,6 +41,7 @@ class MODE(Enum):
 class STATUS(Enum):
     OFF = 0
     ON = 1
+    EXECUTED = 2
 
 
 # states of trades

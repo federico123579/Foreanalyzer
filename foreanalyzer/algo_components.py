@@ -11,6 +11,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 
 import foreanalyzer.exceptions as exc
+from foreanalyzer._internal_utils import STATUS
 
 LOGGER = logging.getLogger("foreanalyzer.algo_components")
 
@@ -25,10 +26,17 @@ class Indicator(metaclass=ABCMeta):
     def __init__(self, dataframe):
         self.dataframe = dataframe.copy()
         self.values = None
+        self.status = STATUS.OFF
 
     @abstractmethod
-    def execute(self):
+    def _execute(self):
         """execute calculations"""
+
+    def execute(self):
+        """execute calculations and procedures"""
+        values = self._execute()
+        self.status = STATUS.EXECUTED
+        return values
 
 
 class PeriodIndicator(Indicator, metaclass=ABCMeta):
@@ -39,7 +47,7 @@ class PeriodIndicator(Indicator, metaclass=ABCMeta):
         self.period = period
 
     @abstractmethod
-    def execute(self):
+    def _execute(self):
         pass
 
 
@@ -88,7 +96,7 @@ class AboveBelowFilter(Indicator, metaclass=ABCMeta):
         return np.less_equal(self.dataframe['close'], self.values)
 
     @abstractmethod
-    def execute(self):
+    def _execute(self):
         """execute calculations"""
 
 
@@ -104,16 +112,23 @@ class AboveBelowFilter(Indicator, metaclass=ABCMeta):
 #   di controllo del trigger (quindi si eliminano i valori di intervallo più
 #   brevi del'attesa del trigger.
 # ================================== TRIGGER ==================================
-
+# TODO: rename to reducer
 class Trigger(Indicator, metaclass=ABCMeta):
     """abstract trigger"""
 
-    def __init__(self, dataframe):
+    def __init__(self, dataframe, *params):
         super().__init__(dataframe)
+        self.status = STATUS.OFF
 
     @abstractmethod
-    def execute(self):
+    def _execute(self):
         """execute calculations"""
+
+    def execute(self):
+        """execute calculations and procedures"""
+        new_df = self._execute()
+        self.status = STATUS.EXECUTED
+        return new_df
 
 
 class SimplePeriodTrigger(Trigger):
@@ -124,11 +139,11 @@ class SimplePeriodTrigger(Trigger):
         :param interval: time in seconds
         """
         super().__init__(dataframe)
-        self.interval = interval
+        self.interval = int(interval)
         LOGGER.debug(f"SimplePeriodTrigger inited with interval of {interval}")
 
     # noinspection PyTypeChecker
-    def execute(self):
+    def _execute(self):
         timestamp = self.dataframe['timestamp']
         while any(timestamp.diff().dropna().dt.seconds < self.interval):
             # get temp series with new index of timestamps
@@ -156,16 +171,20 @@ class SMA(PeriodIndicator, AboveBelowFilter):
         AboveBelowFilter.__init__(self, dataframe)
         LOGGER.debug(f"SMA inited with period {period}")
 
-    def execute(self):
+    def _execute(self):
         self.values = self.dataframe['close'].rolling(self.period).mean()
         LOGGER.debug("SMA executed")
         return self.values
 
 
-# ============================= INDICATOR FACTORY =============================
+# ================================= FACTORIES =================================
 
 IndicatorFactory = {
     'SMA': SMA
+}
+
+TriggerFactory = {
+    'SimplePeriod': SimplePeriodTrigger
 }
 
 

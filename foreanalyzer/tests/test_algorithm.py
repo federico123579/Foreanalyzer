@@ -11,7 +11,7 @@ import pytest
 
 import foreanalyzer.algo_components as algocomp
 import foreanalyzer.exceptions as exc
-from foreanalyzer._internal_utils import CURRENCY
+from foreanalyzer._internal_utils import CURRENCY, STATUS
 from foreanalyzer.algorithm import BaseAlgorithmToConf, SimpleAlgorithm001
 from foreanalyzer.data_handler import DataHandler
 
@@ -66,22 +66,36 @@ def test_SimplePeriodTrigger(_get_period, _get_dataframe):
 
 def test_baseAlgoToConf_init():
     indicators = [['SMA', [10], 'above']]
-    BaseAlgorithmToConf(['EURUSD'], DEFAULT_RANGE, indicators)
+    trigger = ['SimplePeriod', [600]]
+    BaseAlgorithmToConf(['EURUSD'], DEFAULT_RANGE, indicators, trigger)
     with pytest.raises(exc.CurrencyNotListed):
-        BaseAlgorithmToConf(['test'], DEFAULT_RANGE, indicators)
+        BaseAlgorithmToConf(['test'], DEFAULT_RANGE, indicators, trigger)
+    # test error with name of instruments
     with pytest.raises(exc.IndicatorNotListed):
         BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                            [['test', [10], 'above']])
+                            [['test', [10], 'above']], trigger)
+    with pytest.raises(exc.TriggerNotListed):
+        BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
+                            indicators, ['test', [10]])
+    # test error with scope
     with pytest.raises(exc.IndicatorError):
         algo = BaseAlgorithmToConf([DEFAULT_CURRENCY], DEFAULT_RANGE,
-                                   [['SMA', [10], 'test']])
+                                   [['SMA', [10], 'test']], trigger)
         algo.setup()
 
 
 def test_baseAlgoToConf_setup():
     indicators = [['SMA', [10], 'above']]
-    algo = BaseAlgorithmToConf(['EURUSD', 'AUDUSD'], DEFAULT_RANGE, indicators)
+    trigger = ['SimplePeriod', [600]]
+    algo = BaseAlgorithmToConf(['EURUSD', 'AUDUSD'], DEFAULT_RANGE,
+                               indicators, trigger)
     algo.setup()
+    for currency in algo.currencies:
+        df = algo.dataframes[currency]
+        assert hasattr(df, 'SMA')
+        assert df.SMA.status == STATUS.EXECUTED
+        assert df.trigger.status == STATUS.EXECUTED
+        assert len(df.trigger.dataframe) == len(df.SMA.dataframe)
 
 
 def test_baseAlgoConfigured():

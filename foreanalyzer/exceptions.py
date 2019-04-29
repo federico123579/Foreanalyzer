@@ -65,12 +65,11 @@ class IndicatorError(Exception):
         LOGGER.error(self.msg)
         super().__init__(self.msg)
 
-
-class TriggerNotListed(Exception):
-    def __init__(self, trigger):
-        self.msg = f"Trigger {trigger} not listed"
-        LOGGER.error(self.msg)
-        super().__init__(self.msg)
+# class TriggerNotListed(Exception):
+#     def __init__(self, trigger):
+#         self.msg = f"Trigger {trigger} not listed"
+#         LOGGER.error(self.msg)
+#         super().__init__(self.msg)
 
 
 # class OrderAborted(Exception):

@@ -5,10 +5,9 @@ Foreanalyzer.algo_components
 Contains all ABS for algorithm building
 """
 
+import abc
 import logging
-from abc import ABCMeta, abstractmethod
 
-import numpy as np
 import pandas as pd
 
 import foreanalyzer.exceptions as exc
@@ -19,19 +18,25 @@ LOGGER = logging.getLogger("foreanalyzer.algo_components")
 
 # ================================ INDICATOR ==================================
 # BaseAbstractClass for Indicator with execute for calculating process
+# WARNING: IndicatorReduced must be the last to init in indicator init
 # ================================ INDICATOR ==================================
 
-class Indicator(metaclass=ABCMeta):
+class Indicator(metaclass=abc.ABCMeta):
     """Indicator abstract implementation"""
 
     def __init__(self, dataframe):
         self.dataframe = dataframe.copy()
         self.values = None
+        self.date_dataframe = None
         self.status = STATUS.OFF
 
-    @abstractmethod
+    @abc.abstractmethod
     def _execute(self):
         """execute calculations"""
+
+    @abc.abstractmethod
+    def reindex_date(self):
+        """return full dataframe"""
 
     def execute(self):
         """execute calculations and procedures"""
@@ -40,33 +45,42 @@ class Indicator(metaclass=ABCMeta):
         return values
 
 
-class PeriodIndicator(Indicator, metaclass=ABCMeta):
-    """Indicator with period property"""
-
-    def __init__(self, dataframe, period):
-        Indicator.__init__(self, dataframe)
-        self.period = period
-
-    @abstractmethod
-    def _execute(self):
-        pass
-
-
-class IndicatorReduced(Indicator, metaclass=ABCMeta):
+class IndicatorReduced(Indicator, metaclass=abc.ABCMeta):
     """Indicator reduced"""
 
     def __init__(self, dataframe, reducer_class, params):
         Indicator.__init__(self, dataframe)
         self.reducer = reducer_class(dataframe, *params)
-        self.full_dataframe = None
+        self.former_dataframe = None
 
-    @abstractmethod
+    @abc.abstractmethod
     def _execute(self):
-        pass
+        """execute calculations"""
 
-    @abstractmethod
-    def get_full_dataframe(self):
+    @abc.abstractmethod
+    def reindex_date(self):
         """return full dataframe"""
+
+    def execute(self):
+        """reduce and execute calculations and procedures"""
+        self.former_dataframe = self.dataframe
+        self.dataframe = self.reducer.execute()
+        return Indicator.execute(self)
+
+
+class IndicatorFiltered(object):
+    """Indicator filtered"""
+
+    def __init__(self, dataframe):
+        self.filter = Filter(dataframe)
+
+    def update_filter(self, values):
+        """call Filter.update method"""
+        return self.filter.update(values)
+
+    def execute_filter(self, scope):
+        """call Filter.execute method"""
+        return self.filter.execute(scope)
 
 
 # ================================== FILTER ===================================
@@ -74,77 +88,83 @@ class IndicatorReduced(Indicator, metaclass=ABCMeta):
 # Inherited from an Indicator.
 # ================================== FILTER ===================================
 
-class AboveBelowFilter(Indicator, metaclass=ABCMeta):
-    """filter for up and down with linear indicator"""
+def filter_above(dataframe, values):
+    """check if close price is above indicator"""
+    df = pd.concat([dataframe, values], axis=1)
+    return df[df['close'] > df[values.name]].index
+
+
+def filter_above_equal(dataframe, values):
+    """check if close price is above indicator"""
+    df = pd.concat([dataframe, values], axis=1)
+    return df[df['close'] >= df[values.name]].index
+
+
+def filter_below(dataframe, values):
+    """check if close price is above indicator"""
+    df = pd.concat([dataframe, values], axis=1)
+    return df[df['close'] < df[values.name]].index
+
+
+def filter_below_equal(dataframe, values):
+    """check if close price is above indicator"""
+    df = pd.concat([dataframe, values], axis=1)
+    return df[df['close'] <= df[values.name]].index
+
+
+FilterFactory = {
+    'above': filter_above,
+    'above_equal': filter_above_equal,
+    'below': filter_below,
+    'below_equal': filter_below_equal
+}
+
+
+class Filter(metaclass=abc.ABCMeta):
+    """base abstract class for filters"""
 
     def __init__(self, dataframe):
-        Indicator.__init__(self, dataframe)
-        np.warnings.filterwarnings('ignore')
+        self.dataframe = dataframe
+        self.values = None
+        self.status = STATUS.OFF
 
-    def above(self):
-        """if above than this indicator"""
-        if self.values is None:
+    def update(self, values):
+        """update status"""
+        self.values = values
+        self.status = STATUS.EXECUTED
+
+    def execute(self, scope):
+        """return datetime index of advantageous time"""
+        if self.status != STATUS.EXECUTED:
             raise exc.IndicatorNotExecuted()
-        if len(self.dataframe) != len(self.values):
-            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
-        return np.greater(self.dataframe['close'], self.values)
+        if scope not in FilterFactory.keys():
+            raise ValueError(f"{scope} not listed in filter")
+        filtered = FilterFactory[scope](self.dataframe, self.values)
+        LOGGER.debug(f"filtered to {len(filtered)}")
+        return filtered
 
-    def above_equal(self):
-        """if above or equal than this indicator"""
-        if self.values is None:
-            raise exc.IndicatorNotExecuted()
-        if len(self.dataframe) != len(self.values):
-            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
-        return np.greater_equal(self.dataframe['close'], self.values)
-
-    def below(self):
-        """if below than this indicator"""
-        if self.values is None:
-            raise exc.IndicatorNotExecuted()
-        if len(self.dataframe) != len(self.values):
-            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
-        return np.less(self.dataframe['close'], self.values)
-
-    def below_equal(self):
-        """if above or equal than this indicator"""
-        if self.values is None:
-            raise exc.IndicatorNotExecuted()
-        if len(self.dataframe) != len(self.values):
-            raise exc.IndicatorLenError(len(self.values), len(self.dataframe))
-        return np.less_equal(self.dataframe['close'], self.values)
-
-    @abstractmethod
-    def _execute(self):
-        """execute calculations"""
-
-
-# ================================== TRIGGER ==================================
-# Trigger that set the event which make the order
-#
-# - I trigger possono essere molteplici nell'algoritmo perché possono esserci
-#   più condizioni perché un trade diventi vantaggioso.
-# - Possono essere periodici (tipo compra ogni ora) o event-driven (tipo
-#   compra quando si verifica una determinata circostanza) ma comunque un
-#   trigger dovrà controllare in modo periodico la situazione della borsa.
-# - Si scremano i dati in base a ciò che individua l'algoritmo nel periodo
-#   di controllo del trigger (quindi si eliminano i valori di intervallo più
-#   brevi del'attesa del trigger.
-# ================================== TRIGGER ==================================
 
 # ================================== REDUCER ==================================
 # reduce data analysis of an indicator to precise time period
 # ================================== REDUCER ==================================
 
-class Reducer(Indicator, metaclass=ABCMeta):
-    """abstract trigger"""
+class Reducer(metaclass=abc.ABCMeta):
+    """abstract reducer"""
 
     def __init__(self, dataframe):
-        Indicator.__init__(self, dataframe)
+        self.dataframe = dataframe.copy()
+        self.values = None
         self.status = STATUS.OFF
 
-    @abstractmethod
+    @abc.abstractmethod
     def _execute(self):
         """execute calculations"""
+
+    def execute(self):
+        """execute calculations and procedures"""
+        values = self._execute()
+        self.status = STATUS.EXECUTED
+        return values
 
 
 class PeriodReducer(Reducer):
@@ -156,22 +176,10 @@ class PeriodReducer(Reducer):
         """
         Reducer.__init__(self, dataframe)
         self.interval = int(interval)
-        LOGGER.debug(f"SimplePeriodTrigger inited with interval of {interval}")
+        LOGGER.debug(f"PeriodReducer inited with interval of {interval}")
 
-    # noinspection PyTypeChecker
     def _execute(self):
-        timestamp = self.dataframe['timestamp']
-        while any(timestamp.diff().dropna().dt.seconds < self.interval):
-            # get temp series with new index of timestamps
-            tm = timestamp[timestamp.diff().dt.seconds <
-                           self.interval].reset_index()
-            if len(tm) == 1:  # drop last value
-                tm.drop(0)
-            else:  # drop values even so do not delete all next
-                timestamp.drop(
-                    tm[tm.index.map(lambda x: int(x) % 2 == 0)]['index'],
-                    inplace=True)
-        self.dataframe = self.dataframe.iloc[timestamp.index]
+        self.dataframe = self.dataframe.resample(f'{self.interval}S').asfreq()
         LOGGER.debug(f"SimplePeriodTrigger executed and reduced to "
                      f"{len(self.dataframe)}")
         return self.dataframe
@@ -179,7 +187,7 @@ class PeriodReducer(Reducer):
 
 # ============================== REAL INDICATOR ===============================
 
-class SMA(PeriodIndicator, IndicatorReduced, AboveBelowFilter):
+class SMA(IndicatorReduced, IndicatorFiltered):
     """Simple Moving Average"""
 
     def __init__(self, dataframe, period, timeframe):
@@ -187,26 +195,26 @@ class SMA(PeriodIndicator, IndicatorReduced, AboveBelowFilter):
         :param period: int number
         :param timeframe: int number of seconds
         """
-        PeriodIndicator.__init__(self, dataframe, period)
+        self.name = "sma"
         IndicatorReduced.__init__(self, dataframe, PeriodReducer, [timeframe])
-        AboveBelowFilter.__init__(self, dataframe)
+        IndicatorFiltered.__init__(self, dataframe)
+        # indicator properties
+        self.period = period
         LOGGER.debug(f"SMA inited with period {period} and timeframe of "
                      f"{timeframe}")
 
     def _execute(self):
-        df = self.reducer.execute()
-        self.values = df['close'].rolling(self.period).mean()
+        self.values = self.dataframe['close'].rolling(
+            self.period).mean().rename(self.name)
         LOGGER.debug("SMA executed")
+        self.update_filter(self.values)
         return self.values
 
-    def get_full_dataframe(self):
+    def reindex_date(self):
         if self.status != STATUS.EXECUTED:
             raise exc.IndicatorNotExecuted()
-        df = pd.concat([self.dataframe['timestamp'], self.values],
-                       axis=1).ffill()
-        df.index = df['timestamp']
-        df.drop('timestamp', axis=1, inplace=True)
-        self.full_dataframe = df
+        df = self.values.reindex(self.former_dataframe.index).ffill()
+        self.date_dataframe = df
         return df
 
 

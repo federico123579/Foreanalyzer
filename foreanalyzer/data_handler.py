@@ -9,7 +9,6 @@ import logging
 import os.path
 import time
 
-import numpy as np
 import pandas as pd
 
 import foreanalyzer._internal_utils
@@ -32,8 +31,8 @@ def normalize_df(df, range_of_values, time_of_log=10):
         timestamp = pd.Timestamp(str_date + str_time)
         df.loc[row[0], 'time'] = timestamp
     df.drop(columns=['ticker', 'vol', 'dtyyyymmdd'], inplace=True)
-    df.rename({'time': 'timestamp'}, axis='columns', inplace=True)
-    df.index = np.arange(len(df))
+    df.rename({'time': 'datetime'}, axis='columns', inplace=True)
+    df.set_index('datetime', inplace=True)
     return df
 
 

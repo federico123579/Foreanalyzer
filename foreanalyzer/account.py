@@ -32,6 +32,7 @@ class Trade(object):
         profit = ApiClient().api.get_profit_calculation(
             self.symbol.value, self.mode.value, self.volume, self.op_price,
             self.cl_price)['profit']
+        self.profit = profit
         self.state = internal.STATE.EVALUATED
         LOGGER.debug(f"{profit}€ profit got")
         return profit
@@ -101,6 +102,8 @@ class Account(internal.StatusComponent):
 
     def evaluate_trades(self):
         """close effectively all trades"""
+        trade_n = 0
+        tot_trades_n = len(self.trades)
         for trade in self.trades:
             profit = trade.get_profit()
             if self.balance + profit < 0:
@@ -108,10 +111,15 @@ class Account(internal.StatusComponent):
                 raise exceptions.FundsExhausted()
             else:
                 self.balance += profit
+                trade.new_balance = self.balance
+                trade_n += 1
+                LOGGER.debug(f"Trade {trade_n}° / {tot_trades_n} executed")
         n_tot_trades = len(self.trades)
         trades_to_del = [t for t in self.trades if t.state ==
                          internal.STATE.EVALUATED]
+        trades_evaluated = [trade for trade in self.trades if trade.state ==
+                            internal.STATE.EVALUATED]
         # TODO: stabilize this sentence
         _ = [x for x in map(self.trades.remove, trades_to_del)]
         LOGGER.debug(f"{n_tot_trades - len(self.trades)} trades evaluated")
-        return self.balance
+        return trades_evaluated

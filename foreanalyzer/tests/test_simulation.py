@@ -5,45 +5,77 @@ tests.test_simulation
 Test the simulation module.
 """
 
-import pytest
-from foreanalyzer.simulation import AccountSimulated
-from foreanalyzer._internal_utils import ACC_CURRENCIES, MODE
-
-# logger
 import logging
+import os.path
+import pickle
+
+import pandas as pd
+
+from foreanalyzer._internal_utils import CURRENCY, MODE, OUTER_FOLDER_PATH
+from foreanalyzer.account import Account
+from foreanalyzer.algo_components import SMA
+from foreanalyzer.algorithm import RealAlgorithm
+
 LOGGER = logging.getLogger("foreanalyzer.tests.test_simulation")
-LOGGER.info("TESTING test_simulation.py module")
 
 
-@pytest.fixture(scope="module")
-def get_account():
-    return AccountSimulated()
+def test_SMA_Simulation():
+    algo = RealAlgorithm()
+    account = Account(1000000)
+    LOGGER.debug("components inited")
+    algo.setup()
+    account.setup()
+    LOGGER.debug("components setup")
+    df = algo.dataframes[CURRENCY.EURUSD].data
+    LOGGER.debug("got data for later reindex")
+    dates = algo.get_datetime_trades(CURRENCY.EURUSD)
+    LOGGER.debug("got dates and now resample with trigger of act")
+    list_trades = df.reindex(dates).resample('3600S').asfreq().dropna().index
+    LOGGER.debug("got list of trades")
+    sma = SMA(df, algo.dataframes[CURRENCY.EURUSD].SMA.period,
+              algo.dataframes[CURRENCY.EURUSD].SMA.reducer.interval)
+    sma.execute()
+    close_dates = sma.execute_filter('above')
+    LOGGER.debug("got close dates (of price below sma)")
+    close_couples = []
+    for trade in list_trades:
+        open_date = trade
+        if len(close_dates[trade < close_dates]) > 0:
+            close_date = close_dates[trade < close_dates][0]
+            close_couples.append(
+                [df['close'].loc[open_date], df['close'].loc[close_date],
+                 close_date])
+    LOGGER.debug("got close couples")
+    for open_pr, close_pr, close_date in close_couples:
+        trade = account.open_trade(CURRENCY.EURUSD, MODE.buy, 0.01,
+                                   open_pr)
+        trade.datetime = close_date
+        account.close_trade(trade.trade_id, close_pr)
+    LOGGER.debug("setup trades")
+    trades_evaluated = account.evaluate_trades()
+    LOGGER.debug("evaluated trades")
+    LOGGER.debug("=======  STATISTICS =======")
+    LOGGER.debug(f"Period analyzed: from {list_trades[0]} to "
+                 f"{list_trades[-1]}")
+    LOGGER.debug(f"profit = {account.balance - account.initial_balance}")
+    profit_list = [trade.profit for trade in trades_evaluated]
+    LOGGER.debug(f"Max profit at once: {max(profit_list)}")
+    LOGGER.debug(f"Min profit at once: {min(profit_list)}")
+    LOGGER.debug(f"Mean of profits: {sum(profit_list) / len(profit_list)}")
+    # save a dataframe for later analysis
+    pickle_arguments = [[tr.datetime, tr.profit, tr.new_balance] for tr in
+                        trades_evaluated]
+    pickle_df = pd.DataFrame({
+        'datetime': [x[0] for x in pickle_arguments],
+        'profit': [x[1] for x in pickle_arguments],
+        'balance': [x[2] for x in pickle_arguments]
+    }).set_index('datetime')
+    file_path = os.path.join(
+        OUTER_FOLDER_PATH, "data_analysis", "profit_dataframe.pickle")
+    with open(file_path, 'wb') as f:
+        pickle.dump(pickle_df, f, pickle.HIGHEST_PROTOCOL)
+    LOGGER.debug("File pickle dumped")
 
 
-def test_config(get_account):
-    """test the config init dict"""
-    LOGGER.debug("RUN test_config")
-    acc = get_account
-    assert 'simulation' in acc.config
-    LOGGER.debug("PASSED test_config")
-
-
-def test_simulate(get_account):
-    """test the simulate method"""
-    LOGGER.debug("RUN test_simulate")
-    acc = get_account
-    old_funds = acc.funds
-    EURUSD = ACC_CURRENCIES.EURUSD
-    # make order
-    acc.update_price(EURUSD)
-    acc.make_order(MODE.BUY, EURUSD, 5000)
-    # simulate change of price
-    acc.simulate(EURUSD, 1.13400, 1.12300)
-    price_table = {'buy': 1.13400, 'sell': 1.12300}
-    assert acc.price_tables[EURUSD] == price_table
-    # close position
-    pos = acc.positions[0]
-    LOGGER.debug("RESULT gain of pos - {}".format(pos.gain))
-    pos.close()
-    assert acc.funds != old_funds
-    LOGGER.debug("PASSED test_simulate")
+if __name__ == "__main__":
+    test_SMA_Simulation()

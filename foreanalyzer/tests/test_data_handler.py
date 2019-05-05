@@ -17,7 +17,7 @@ from foreanalyzer.data_handler import DataHandler, ZipFeeder
 LOGGER = logging.getLogger("foreanalyzer.tests.test_data_handler")
 
 OUTER_FOLDER_PATH = os.path.join(internal.OUTER_FOLDER_PATH, 'data')
-RANGE_OF_VALUES = 10000
+RANGE_OF_VALUES = 1000
 
 
 def cleaning():
@@ -32,8 +32,7 @@ def test_unzip_data():
     """extract and test again"""
     not_already_zipped = 1
     while not_already_zipped:
-        not_already_zipped = internal.unzip_data(
-            internal.OUTER_FOLDER_PATH, 'EURUSD')
+        not_already_zipped = internal.unzip_data(OUTER_FOLDER_PATH, 'EURUSD')
     assert not_already_zipped == 0
     cleaning()
 

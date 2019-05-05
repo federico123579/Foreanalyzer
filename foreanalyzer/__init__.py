@@ -30,7 +30,7 @@ logging.config.dictConfig({
     'loggers': {
         '': {
             'handlers': ['console'],
-            'level': 'CRITICAL',
+            'level': 'DEBUG',
             'propagate': True
         },
         'foreanalyzer': {

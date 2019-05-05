@@ -7,7 +7,6 @@ RAM eater, load RAM.
 
 import logging
 import os.path
-import time
 
 import pandas as pd
 
@@ -16,23 +15,20 @@ import foreanalyzer._internal_utils
 LOGGER = logging.getLogger("foreanalyzer.data")
 
 
-def normalize_df(df, range_of_values, time_of_log=10):
-    df.drop(df.index[:-range_of_values], inplace=True)
+def normalize_df(df, range_of_values):
+    if range_of_values < len(df):
+        df = df.iloc[-range_of_values:].copy()
+        LOGGER.debug("dataframe sliced")
+    else:
+        LOGGER.debug("dataframe not sliced")
     df.rename(columns=lambda x: x.strip('<>').lower(), inplace=True)
-    old_t = time.time()
-    for i, row in enumerate(df.iterrows()):
-        if time.time() - old_t > time_of_log:
-            LOGGER.debug(f"{i / len(df) * 100:.3f}% normalized")
-            old_t = time.time()
-        str_time = str(int(row[1].loc['time']))
-        str_date = str(int(row[1].loc['dtyyyymmdd']))
-        if len(str_time) < 6:
-            str_time = (6 - len(str_time))*'0' + str_time
-        timestamp = pd.Timestamp(str_date + str_time)
-        df.loc[row[0], 'time'] = timestamp
-    df.drop(columns=['ticker', 'vol', 'dtyyyymmdd'], inplace=True)
-    df.rename({'time': 'datetime'}, axis='columns', inplace=True)
+    timestamp = pd.Series(
+        df['dtyyyymmdd'].map(str) + df['time'].map(str).apply(
+            lambda x: (6 - len(x)) * '0') + df['time'].map(str))
+    df.insert(0, 'datetime', timestamp.map(pd.Timestamp))
+    df.drop(columns=['ticker', 'vol', 'dtyyyymmdd', 'time'], inplace=True)
     df.set_index('datetime', inplace=True)
+    LOGGER.debug("dataframe normalized")
     return df
 
 

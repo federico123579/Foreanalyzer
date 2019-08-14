@@ -12,3 +12,7 @@ config.yml
 .ycm_extra_conf.py
 foreanalyzer/data/
 data_analysis/
+
+### Cache
+__pycache__/
+*.swp

@@ -2,7 +2,7 @@
 foreanalyzer.data_handler
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-RAM eater, load RAM.
+Load data from csv files.
 """
 
 import logging
@@ -15,7 +15,8 @@ import foreanalyzer._internal_utils
 LOGGER = logging.getLogger("foreanalyzer.data")
 
 
-def normalize_df(df, range_of_values):
+def normalise_df(df, range_of_values):
+    """normalise according to written instructions - see README"""
     if range_of_values < len(df):
         df = df.iloc[-range_of_values:].copy()
         LOGGER.debug("dataframe sliced")
@@ -28,40 +29,41 @@ def normalize_df(df, range_of_values):
     df.insert(0, 'datetime', timestamp.map(pd.Timestamp))
     df.drop(columns=['ticker', 'vol', 'dtyyyymmdd', 'time'], inplace=True)
     df.set_index('datetime', inplace=True)
-    LOGGER.debug("dataframe normalized")
+    LOGGER.debug("dataframe normalised")
     return df
 
 
 class Dataframe(object):
-    """Dataframe class"""
+    """hold pandas  dataframe object from csv files"""
 
     def __init__(self, currency, range_of_values: int):
         if currency not in foreanalyzer._internal_utils.CURRENCY:
             raise ValueError("Instrument not accepted")
-        # feeder
         self._folder = os.path.join(
             foreanalyzer._internal_utils.FOLDER_PATH, 'data')
-        self.feeder = ZipFeeder(os.path.join(
-            foreanalyzer._internal_utils.OUTER_FOLDER_PATH, 'data'))
+        self._parent_folder = os.path.join(
+            foreanalyzer._internal_utils.OUTER_FOLDER_PATH, 'data')
         self.currency = currency
         self.range_of_values = range_of_values
         self.data = None
 
     def load(self):
         """load the dataframe with data"""
-        self.feeder.normalize_single(self.currency)
+        foreanalyzer._internal_utils.unzip_data(self._parent_folder,
+                                                self.currency.value)
         file_path = os.path.join(self._folder, self.currency.value + '.csv')
-        df = normalize_df(pd.read_csv(file_path), self.range_of_values)
+        df = normalise_df(pd.read_csv(file_path), self.range_of_values)
         self.data = df
         return df
 
     def unload(self):
+        """free RAM"""
         del self.data
         self.data = None
 
 
 class DataHandler(object):
-    """handler"""
+    """handle Dataframe obejcts"""
 
     def __init__(self, range_of_values: int):
         self.dataframes = {}
@@ -69,12 +71,3 @@ class DataHandler(object):
         for currency in foreanalyzer._internal_utils.CURRENCY:
             self.dataframes[currency] = Dataframe(currency, range_of_values)
 
-
-class ZipFeeder(object):
-    """create data from zip file outer folder"""
-
-    def __init__(self, folder):
-        self.basefolder = folder
-
-    def normalize_single(self, instr):
-        foreanalyzer._internal_utils.unzip_data(self.basefolder, instr.value)

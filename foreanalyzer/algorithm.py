@@ -17,10 +17,16 @@ LOGGER = logging.getLogger("foreanalyzer.algo")
 
 # ============================== ALGORITHM ==============================
 # BaseAlgorithm configured from config.yml
+# This object when called for setup init a list of indicators with their
+# respective parameters and after having set up a personalized instace
+# of each of them in a respective dataframe object call them and submit.
+# Doing this every indicator is inited and executed on setup and given
+# access from dataframe object.
 # ============================== ALGORITHM ==============================
 
 class BaseAlgorithm(object):
-    """Base Algorithm implementation, read conf from imput"""
+    """Base Algorithm implementation
+    Read conf from imput and accept indicators and args for them"""
 
     def __init__(self, name: str, indicators: list):
         """
@@ -47,7 +53,8 @@ class BaseAlgorithm(object):
         LOGGER.debug("BaseAlgorithm inited")
 
     def setup(self):
-        """setup for the algo, init and execute indicators"""
+        """Setup for the algo, init and execute indicators
+        Call the setup directives, initing and executing all indicators."""
         for currency in self.currencies:
             self.dataframes[currency] = alco.AlgoDataframe(
                 currency, self._stock_data[currency].load())
@@ -56,33 +63,25 @@ class BaseAlgorithm(object):
         self.status['exe'] = 1
         LOGGER.debug("BaseAlgorithm setup")
 
-    def get_datetime_trades(self, currency):
-        """get full dataframe"""
-        if not self.status['exe']:
-            raise exc.AlgorithmNotExecuted()
-        df = self.dataframes[currency]
-        indicator_dates = df.data.index
-        for indicator_name in self.indicators:
-            LOGGER.debug(f"filtering for {indicator_name}")
-            indicator = getattr(df, indicator_name)
-            indicator_dates = indicator_dates.intersection(
-                indicator.execute_filter(self.instruction[indicator_name]))
-            LOGGER.debug(f"ultimate dates filtered to {len(indicator_dates)}")
-        return indicator_dates
-
     def _init_indicators(self):
-        """init indicators here"""
+        """Init indicators here
+        Indicators are inited here and set as attr in dataframe objects
+        for each of currencies listened."""
         for currency in self.currencies:
             for indicator in self._indicators:
                 dataframe_obj = self.dataframes[currency]
                 name = indicator['name']
+                LOGGER.debug(f"setting {name} for {currency.value}")
                 setattr(dataframe_obj, name, alco.IndicatorFactory[name](
-                    dataframe_obj.dataframe,  **indicator['args']))
+                    dataframe_obj.dataframe, **indicator['args']))
 
     def _execute_indicators(self):
-        """execute all indicators"""
+        """Execute all indicators
+        Execute all indicators listened in self._indicators, given by
+        init and submit their values in dataframe object."""
         for currency in self.currencies:
             for indicator in self._indicators:
-                LOGGER.debug(f"executing {indicator['name']} for {currency}")
-                getattr(self.dataframes[currency], indicator['name']).submit()
+                name = indicator['name']
+                LOGGER.debug(f"executing {name} for {currency}")
+                getattr(self.dataframes[currency], name).submit()
 

@@ -29,6 +29,7 @@ class Trade(object):
         LOGGER.debug(f"inited Trade #{self.trade_id}")
 
     def get_profit(self):
+        """calculate profit according to api"""
         profit = ApiClient().api.get_profit_calculation(
             self.symbol.value, self.mode.value, self.volume, self.op_price,
             self.cl_price)['profit']
@@ -38,6 +39,7 @@ class Trade(object):
         return profit
 
     def close(self, cl_price):
+        """set state closed for remotion from to_evaluate list"""
         self.cl_price = cl_price
         self.state = internal.STATE.CLOSED
 

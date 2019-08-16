@@ -11,18 +11,16 @@ import logging
 import pandas as pd
 
 import foreanalyzer.exceptions as exc
-from foreanalyzer._internal_utils import STATUS
 
 LOGGER = logging.getLogger("foreanalyzer.algo_components")
 
 
 # ============================= INDICATOR ===============================
 # BaseAbstractClass for Indicator with execute for calculating process
-# WARNING: IndicatorReduced must be the last to init in indicator init
 # ============================= INDICATOR ===============================
 
 class Indicator(metaclass=abc.ABCMeta):
-    """abstract implementation"""
+    """Base class for financial tools (Indicators)"""
 
     def __init__(self, dataframe):
         self.dataframe_original = dataframe.copy()
@@ -33,14 +31,16 @@ class Indicator(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _execute(self, *args):
-        """execute calculations"""
+        """Execute calculations"""
 
     @abc.abstractmethod
     def _reindex_data(self, *args):
-        """return full dataframe"""
+        """Return full dataframe"""
 
     def reduce(self, timeframe):
-        """redute to timeframe (expressed in seconds)"""
+        """Redute to timeframe (expressed in seconds)
+        Reduce cut the dataframe leaving fixed intervals
+        between each entry"""
         if not isinstance(timeframe, int):
             raise ValueError("timeframe refers to int seconds")
         df = self.dataframe_original.copy()
@@ -53,7 +53,9 @@ class Indicator(metaclass=abc.ABCMeta):
         return df
 
     def reindex_data(self):
-        """reindex data under frequency"""
+        """Reindex data under frequency
+        Merge old data with new one and fill blank spaces with previous
+        Optimal strategy for mergin future indicators"""
         if not self.status['exe']:
             raise exc.IndicatorNotExecuted()
         df = self._reindex_data()
@@ -66,13 +68,18 @@ class Indicator(metaclass=abc.ABCMeta):
         return df
 
     def submit(self):
-        """execute calculations and procedures"""
+        """Execute calculations and procedures
+        Execute the core calculation of the indicator and make a new
+        pandas series of values than can be reindexed and mixed with
+        others ready to be filtered out"""
         values = self._execute()
         self.status['exe'] = 1
         LOGGER.debug(f"{self.__class__.__name__} submitted")
         return values
 
 
+# =========================== REAL INDICATOR ============================
+# Real implementation of indicators.
 # =========================== REAL INDICATOR ============================
 
 class SMA(Indicator):
@@ -104,6 +111,9 @@ class SMA(Indicator):
 
 
 # ============================== FACTORIES ==============================
+# This factory serves as a link to indicator for string_to_object
+# initialization and execution.
+# ============================== FACTORIES ==============================
 
 IndicatorFactory = {
     'SMA': SMA
@@ -111,7 +121,7 @@ IndicatorFactory = {
 
 
 # =========================== ALGO DATAFRAMES ===========================
-# algo dataframes for analysis of dataframes with indicators
+# Dataframe object for storing all indicators data in it.
 # =========================== ALGO DATAFRAMES ===========================
 
 class AlgoDataframe(object):

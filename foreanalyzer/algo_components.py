@@ -1,8 +1,8 @@
 """
 Foreanalyzer.algo_components
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Contains all ABS for algorithm building
+Contains all indicators.
 """
 
 import abc
@@ -16,178 +16,66 @@ from foreanalyzer._internal_utils import STATUS
 LOGGER = logging.getLogger("foreanalyzer.algo_components")
 
 
-# ================================ INDICATOR ==================================
+# ============================= INDICATOR ===============================
 # BaseAbstractClass for Indicator with execute for calculating process
 # WARNING: IndicatorReduced must be the last to init in indicator init
-# ================================ INDICATOR ==================================
+# ============================= INDICATOR ===============================
 
 class Indicator(metaclass=abc.ABCMeta):
-    """Indicator abstract implementation"""
+    """abstract implementation"""
 
     def __init__(self, dataframe):
-        self.dataframe = dataframe.copy()
+        self.dataframe_original = dataframe.copy()
         self.values = None
-        self.date_dataframe = None
-        self.status = STATUS.OFF
+        self.dataframe_reduced = None
+        self.dataframe_reindexed = None
+        self.status = {'exe': 0, 'reduced': 0, 'reduced_freq': None}
 
     @abc.abstractmethod
-    def _execute(self):
+    def _execute(self, *args):
         """execute calculations"""
 
     @abc.abstractmethod
-    def reindex_date(self):
+    def _reindex_data(self, *args):
         """return full dataframe"""
 
-    def execute(self):
-        """execute calculations and procedures"""
-        values = self._execute()
-        self.status = STATUS.EXECUTED
-        return values
+    def reduce(self, timeframe):
+        """redute to timeframe (expressed in seconds)"""
+        if not isinstance(timeframe, int):
+            raise ValueError("timeframe refers to int seconds")
+        df = self.dataframe_original.copy()
+        df = df.resample(f'{timeframe}S').asfreq()
+        self.dataframe_reduced = df.copy()
+        self.status['reduced_freq'] = timeframe
+        self.status['reduced'] = 1
+        LOGGER.debug(f"reduced to {len(df)} as "
+                     f"{timeframe}s timeframe")
+        return df
 
-
-class IndicatorReduced(Indicator, metaclass=abc.ABCMeta):
-    """Indicator reduced"""
-
-    def __init__(self, dataframe, reducer_class, params):
-        Indicator.__init__(self, dataframe)
-        self.reducer = reducer_class(dataframe, *params)
-        self.former_dataframe = None
-
-    @abc.abstractmethod
-    def _execute(self):
-        """execute calculations"""
-
-    @abc.abstractmethod
-    def reindex_date(self):
-        """return full dataframe"""
-
-    def execute(self):
-        """reduce and execute calculations and procedures"""
-        self.former_dataframe = self.dataframe
-        self.dataframe = self.reducer.execute()
-        return Indicator.execute(self)
-
-
-class IndicatorFiltered(object):
-    """Indicator filtered"""
-
-    def __init__(self, dataframe):
-        self.filter = Filter(dataframe)
-
-    def update_filter(self, values):
-        """call Filter.update method"""
-        return self.filter.update(values)
-
-    def execute_filter(self, scope):
-        """call Filter.execute method"""
-        return self.filter.execute(scope)
-
-
-# ================================== FILTER ===================================
-# Filter for conditions for making order
-# Inherited from an Indicator.
-# ================================== FILTER ===================================
-
-def filter_above(dataframe, values):
-    """check if close price is above indicator"""
-    df = pd.concat([dataframe, values], axis=1)
-    return df[df['close'] > df[values.name]].index
-
-
-def filter_above_equal(dataframe, values):
-    """check if close price is above indicator"""
-    df = pd.concat([dataframe, values], axis=1)
-    return df[df['close'] >= df[values.name]].index
-
-
-def filter_below(dataframe, values):
-    """check if close price is above indicator"""
-    df = pd.concat([dataframe, values], axis=1)
-    return df[df['close'] < df[values.name]].index
-
-
-def filter_below_equal(dataframe, values):
-    """check if close price is above indicator"""
-    df = pd.concat([dataframe, values], axis=1)
-    return df[df['close'] <= df[values.name]].index
-
-
-FilterFactory = {
-    'above': filter_above,
-    'above_equal': filter_above_equal,
-    'below': filter_below,
-    'below_equal': filter_below_equal
-}
-
-
-class Filter(metaclass=abc.ABCMeta):
-    """base abstract class for filters"""
-
-    def __init__(self, dataframe):
-        self.dataframe = dataframe
-        self.values = None
-        self.status = STATUS.OFF
-
-    def update(self, values):
-        """update status"""
-        self.values = values
-        self.status = STATUS.EXECUTED
-
-    def execute(self, scope):
-        """return datetime index of advantageous time"""
-        if self.status != STATUS.EXECUTED:
+    def reindex_data(self):
+        """reindex data under frequency"""
+        if not self.status['exe']:
             raise exc.IndicatorNotExecuted()
-        if scope not in FilterFactory.keys():
-            raise ValueError(f"{scope} not listed in filter")
-        filtered = FilterFactory[scope](self.dataframe, self.values)
-        LOGGER.debug(f"filtered to {len(filtered)}")
-        return filtered
+        df = self._reindex_data()
+        del self.dataframe_reduced
+        self.dataframe_reduced = None
+        # here df is not copied to save some RAM
+        self.dataframe_reindexed = df
+        self.status['reduced'] = 0
+        LOGGER.debug(f"{self.__class__.__name__} reindexed")
+        return df
 
-
-# ================================== REDUCER ==================================
-# reduce data analysis of an indicator to precise time period
-# ================================== REDUCER ==================================
-
-class Reducer(metaclass=abc.ABCMeta):
-    """abstract reducer"""
-
-    def __init__(self, dataframe):
-        self.dataframe = dataframe.copy()
-        self.values = None
-        self.status = STATUS.OFF
-
-    @abc.abstractmethod
-    def _execute(self):
-        """execute calculations"""
-
-    def execute(self):
+    def submit(self):
         """execute calculations and procedures"""
         values = self._execute()
-        self.status = STATUS.EXECUTED
+        self.status['exe'] = 1
+        LOGGER.debug(f"{self.__class__.__name__} submitted")
         return values
 
 
-class PeriodReducer(Reducer):
-    """simple period reducer"""
+# =========================== REAL INDICATOR ============================
 
-    def __init__(self, dataframe, interval):
-        """
-        :param interval: time in seconds
-        """
-        Reducer.__init__(self, dataframe)
-        self.interval = int(interval)
-        LOGGER.debug(f"PeriodReducer inited with interval of {interval}")
-
-    def _execute(self):
-        self.dataframe = self.dataframe.resample(f'{self.interval}S').asfreq()
-        LOGGER.debug(f"SimplePeriodTrigger executed and reduced to "
-                     f"{len(self.dataframe)}")
-        return self.dataframe
-
-
-# ============================== REAL INDICATOR ===============================
-
-class SMA(IndicatorReduced, IndicatorFiltered):
+class SMA(Indicator):
     """Simple Moving Average"""
 
     def __init__(self, dataframe, period, timeframe):
@@ -195,44 +83,41 @@ class SMA(IndicatorReduced, IndicatorFiltered):
         :param period: int number
         :param timeframe: int number of seconds
         """
-        self.name = "sma"
-        IndicatorReduced.__init__(self, dataframe, PeriodReducer, [timeframe])
-        IndicatorFiltered.__init__(self, dataframe)
-        # indicator properties
+        # indicator parameters
         self.period = period
+        self.timeframe = timeframe
+        # name of new df column
+        self.column_name = 'sma'
+        super().__init__(dataframe)
         LOGGER.debug(f"SMA inited with period {period} and timeframe of "
                      f"{timeframe}")
 
     def _execute(self):
-        self.values = self.dataframe['close'].rolling(
-            self.period).mean().rename(self.name)
-        LOGGER.debug("SMA executed")
-        self.update_filter(self.values)
+        df = self.reduce(self.timeframe)
+        self.values = df['close'].rolling(
+            self.period).mean().rename(self.column_name)
         return self.values
 
-    def reindex_date(self):
-        if self.status != STATUS.EXECUTED:
-            raise exc.IndicatorNotExecuted()
-        df = self.values.reindex(self.former_dataframe.index).ffill()
-        self.date_dataframe = df
+    def _reindex_data(self):
+        df = self.values.reindex(self.dataframe_original.index).ffill()
         return df
 
 
-# ================================= FACTORIES =================================
+# ============================== FACTORIES ==============================
 
 IndicatorFactory = {
     'SMA': SMA
 }
 
 
-# ============================== ALGO DATAFRAMES ==============================
+# =========================== ALGO DATAFRAMES ===========================
 # algo dataframes for analysis of dataframes with indicators
-# ============================== ALGO DATAFRAMES ==============================
+# =========================== ALGO DATAFRAMES ===========================
 
 class AlgoDataframe(object):
     """dataframe for algo analysis"""
 
-    def __init__(self, currency, data):
+    def __init__(self, currency, dataframe):
         self.currency = currency
-        self.data = data
-        self.instruction = {}
+        self.dataframe = dataframe
+

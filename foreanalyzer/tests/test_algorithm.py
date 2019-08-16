@@ -2,11 +2,12 @@
 test.test_algorithm
 ~~~~~~~~~~~~~~~~~
 
-Test algos.
+Test base algorithm and algo components.
 """
 
 import logging
 
+import pandas as pd
 import pytest
 
 import foreanalyzer.algo_components as algocomp
@@ -22,30 +23,36 @@ DEFAULT_RANGE = 1000
 
 @pytest.fixture(scope="module")
 def _get_dataframe():
-    return DataHandler(1000).dataframes[DEFAULT_CURRENCY].load().copy()
+    return DataHandler(DEFAULT_RANGE).dataframes[DEFAULT_CURRENCY].load().copy()
 
 
 # ============================== TEST INDICATORS ==============================
 
+SMA_PERIOD = 12
+SMA_TIMEFRAME = 1800
+
 class TestSMA(object):
     def test_values(self, _get_dataframe):
-        period = 10
+        """testing with minimum frequency"""
+        period = SMA_PERIOD
         timeframe = 60
         df = _get_dataframe
         sma = df['close'].rolling(period).mean()
         sma_indicator = algocomp.SMA(df, period, timeframe)
-        assert sma.equals(sma_indicator.execute())
+        assert sma.equals(sma_indicator.submit())
         df['sma'] = sma
         LOGGER.debug(f"{df.iloc[-1]}")
 
+    # TODO: add test reduce
+
     def test_reindex(self, _get_dataframe):
         df = _get_dataframe
-        period = 10
-        timeframe = 600
+        period = SMA_PERIOD
+        timeframe = SMA_TIMEFRAME
         sma = algocomp.SMA(df, period, timeframe)
-        sma.execute()
+        sma.submit()
         sma.reindex_date()
-        LOGGER.debug(sma.date_dataframe)
+        LOGGER.debug(sma.dataframe_reindexed)
 
 
 # =============================== TEST REDUCERS ===============================
@@ -66,25 +73,6 @@ def test_PeriodReducer(_get_period, _get_dataframe):
     trigger.execute()
     assert all(trigger.dataframe.reset_index()[
                    'datetime'].diff().dropna().dt.seconds >= period)
-
-
-# ================================ TEST FILTERS ===============================
-
-filters = [x for x in algocomp.FilterFactory.keys()]
-
-
-@pytest.fixture(params=filters)
-def _get_filter_scope(request):
-    yield request.param
-
-
-def test_filters(_get_dataframe, _get_filter_scope):
-    df = _get_dataframe
-    filter_scope = _get_filter_scope
-    algo_filter = algocomp.Filter(df)
-    values = algocomp.SMA(df, 10, 600).execute()
-    algo_filter.update(values)
-    algo_filter.execute(filter_scope)
 
 
 # ============================== TEST ALGORITHMS ==============================

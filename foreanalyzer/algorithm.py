@@ -15,42 +15,50 @@ from foreanalyzer.data_handler import DataHandler
 LOGGER = logging.getLogger("foreanalyzer.algo")
 
 
-# ================================= ALGORITHM =================================
-# BaseAlgorithm to configure with arguments:
-# indicators:
-#     [['SMA', [10], 'above'], ...]
-# ================================= ALGORITHM =================================
+# ============================== ALGORITHM ==============================
+# BaseAlgorithm configured from config.yml
+# ============================== ALGORITHM ==============================
 
-class BaseAlgorithmToConf(object):
-    """Algorithm abstract implementation"""
+class BaseAlgorithm(object):
+    """Base Algorithm implementation, read conf from imput"""
 
-    def __init__(self, currencies, range_of_values, indicators):
-        for indicator in indicators:
-            if indicator[0] not in [x for x in alco.IndicatorFactory.keys()]:
-                raise exc.IndicatorNotListed(indicator[0])
+    def __init__(self, name: str, indicators: list):
+        """
+        indicator must be a list like this:
+            indicators = [{'name': "SMA", 'args':
+                             {'period': .., 'timeframe': ..}}]
+        """
+        config = internal.read_config()
+        if name not in config.keys():
+            raise ValueError(f"{name} not in config")
+        for indi in indicators:
+            if indi['name'] not in alco.IndicatorFactory.keys():
+                raise exc.IndicatorNotListed(indi)
+        self.config = config[name]
+        currencies = self.config['currencies']
+        range_of_values = self.config['range_of_values']
         self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
                            for curr in currencies]
         self._data_handler = DataHandler(range_of_values)
-        self.stock_data = self._data_handler.dataframes
-        self._indicators_conf = indicators
-        self.indicators = [indicator[0] for indicator in self._indicators_conf]
-        self.instruction = {}
+        self._indicators = indicators
+        self._stock_data = self._data_handler.dataframes
         self.dataframes = {}
-        self.status = alco.STATUS.OFF
-        LOGGER.debug("BaseAlgorithmToConf inited")
+        self.status = {'exe': 0}
+        LOGGER.debug("BaseAlgorithm inited")
 
     def setup(self):
+        """setup for the algo, init and execute indicators"""
         for currency in self.currencies:
-            self.stock_data[currency].load()
-        self._init_dataframes()
+            self.dataframes[currency] = alco.AlgoDataframe(
+                currency, self._stock_data[currency].load())
         self._init_indicators()
         self._execute_indicators()
-        self.status = alco.STATUS.EXECUTED
-        LOGGER.debug("BaseAlgorithmToConf setup")
+        self.status['exe'] = 1
+        LOGGER.debug("BaseAlgorithm setup")
 
     def get_datetime_trades(self, currency):
         """get full dataframe"""
-        if self.status != alco.STATUS.EXECUTED:
+        if not self.status['exe']:
             raise exc.AlgorithmNotExecuted()
         df = self.dataframes[currency]
         indicator_dates = df.data.index
@@ -62,57 +70,19 @@ class BaseAlgorithmToConf(object):
             LOGGER.debug(f"ultimate dates filtered to {len(indicator_dates)}")
         return indicator_dates
 
-    def _init_dataframes(self):
-        """update old df to new algodataframe"""
-        for currency in self.currencies:
-            df = alco.AlgoDataframe(currency, self.stock_data[currency].data)
-            self.dataframes[currency] = df
-
     def _init_indicators(self):
-        """setup all indicators in dataframes"""
+        """init indicators here"""
         for currency in self.currencies:
-            LOGGER.debug(f"setting indicators for {currency.value}")
-            df = self.dataframes[currency]
-            for indicator in self._indicators_conf:
-                LOGGER.debug(f"setting {indicator} for {currency}")
-                setattr(df, indicator[0], alco.IndicatorFactory[indicator[0]](
-                    df.data, *indicator[1]))
-                if indicator[2] not in alco.FilterFactory:
-                    raise exc.IndicatorError()
-                self.instruction[indicator[0]] = indicator[2]
-                LOGGER.debug(f"{indicator[0]} indicator setup with "
-                             f"{indicator[1]} with {indicator[2]}")
+            for indicator in self._indicators:
+                dataframe_obj = self.dataframes[currency]
+                name = indicator['name']
+                setattr(dataframe_obj, name, alco.IndicatorFactory[name](
+                    dataframe_obj.dataframe,  **indicator['args']))
 
     def _execute_indicators(self):
         """execute all indicators"""
         for currency in self.currencies:
-            for indicator in self.indicators:
-                LOGGER.debug(f"executing {indicator} for {currency}")
-                getattr(self.dataframes[currency], indicator).execute()
+            for indicator in self._indicators:
+                LOGGER.debug(f"executing {indicator['name']} for {currency}")
+                getattr(self.dataframes[currency], indicator['name']).submit()
 
-
-class BaseAlgorithmConfigured(BaseAlgorithmToConf):
-    """Algorithm abstract class configured from configuration file"""
-
-    def __init__(self, name):
-        config = internal.read_config()
-        if name not in config.keys():
-            raise ValueError(f"{name} not in config")
-        self.config = config[name]
-        currencies = self.config['currencies']
-        range_of_values = self.config['range_of_values']
-        indicators = [[indicator['name'], [arg for _, arg in indicator[
-            'arguments'].items()], indicator['scope']] for indicator in
-                      self.config['indicators']]
-        super().__init__(currencies, range_of_values, indicators)
-        LOGGER.debug("Algorithm with preconfigured file inited")
-
-
-# ============================== REAL ALGORITHM ===============================
-
-class RealAlgorithm(BaseAlgorithmConfigured):
-    """Simple Moving Average"""
-
-    def __init__(self):
-        super().__init__('algo_config')
-        LOGGER.debug(f"SimpleAlgorithm001 inited")

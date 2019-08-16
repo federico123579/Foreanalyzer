@@ -6,3 +6,9 @@
 > If you wish to avoid the fee you can close the trade before 9 pm GMT
 
 > In order result to be converted a 0.5% fee of the value of the result is taken(this fee is already included in the result)
+
+# Project Managment
+
+What to buy:
+
+- whiteboard

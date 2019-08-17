@@ -14,39 +14,44 @@ import pandas as pd
 from foreanalyzer._internal_utils import CURRENCY, MODE, OUTER_FOLDER_PATH
 from foreanalyzer.account import Account
 from foreanalyzer.algo_components import SMA
-from foreanalyzer.algorithm import RealAlgorithm
+from foreanalyzer.algorithm import BaseAlgorithm
 
 LOGGER = logging.getLogger("foreanalyzer.tests.test_simulation")
 
 
 def test_SMA_Simulation():
-    algo = RealAlgorithm()
-    account = Account(1000000)
+    # set up conf for the algorithm
+    indicators = [{
+        'name': 'SMA',
+        'args': {'period': 12, 'timeframe': 3600}
+    }]
+    algo = BaseAlgorithm('TestAlgo', indicators)
+    account = Account(1000)
     LOGGER.debug("components inited")
     algo.setup()
     account.setup()
     LOGGER.debug("components setup")
-    df = algo.dataframes[CURRENCY.EURUSD].data
-    LOGGER.debug("got data for later reindex")
-    dates = algo.get_datetime_trades(CURRENCY.EURUSD)
-    LOGGER.debug("got dates and now resample with trigger of act")
-    list_trades = df.reindex(dates).resample('3600S').asfreq().dropna().index
-    LOGGER.debug("got list of trades")
-    sma = SMA(df, algo.dataframes[CURRENCY.EURUSD].SMA.period,
-              algo.dataframes[CURRENCY.EURUSD].SMA.reducer.interval)
-    sma.execute()
-    close_dates = sma.execute_filter('above')
-    LOGGER.debug("got close dates (of price below sma)")
-    close_couples = []
-    for trade in list_trades:
-        open_date = trade
-        if len(close_dates[trade < close_dates]) > 0:
-            close_date = close_dates[trade < close_dates][0]
-            close_couples.append(
-                [df['close'].loc[open_date], df['close'].loc[close_date],
-                 close_date])
-    LOGGER.debug("got close couples")
-    for open_pr, close_pr, close_date in close_couples:
+    df = algo.dataframes[CURRENCY.EURUSD].dataframe
+    sma = algo.dataframes[CURRENCY.EURUSD].SMA
+    LOGGER.debug("got df and sma")
+    res_df = df.resample('3600S').asfreq()
+    res_sma = sma.values.resample('3600S').asfreq()
+    res_df['sma'] = res_sma
+    res_df.dropna(inplace=True)
+    LOGGER.debug(f"resampled & merged sma and dataframe to {len(res_df)}")
+    _open_entries = res_df[res_df['close'] + 0.003 < res_df['sma']].index
+    LOGGER.debug(f"got {len(_open_entries)} open entries")
+    trade_parameters = []
+    for _entry in _open_entries:
+        data_point = res_df.loc[_entry]
+        new_parameter = [data_point['close']]
+        new_df = res_df[data_point.name:].copy()
+        new_parameter.append(new_df[new_df['close'] >
+                                    new_df['sma']].iloc[0]['close'])
+        new_parameter.append(data_point.name)
+        trade_parameters.append(new_parameter)
+    LOGGER.debug(f"got {len(trade_parameters)} trade parameters")
+    for open_pr, close_pr, close_date in trade_parameters:
         trade = account.open_trade(CURRENCY.EURUSD, MODE.buy, 0.01,
                                    open_pr)
         trade.datetime = close_date
@@ -55,8 +60,8 @@ def test_SMA_Simulation():
     trades_evaluated = account.evaluate_trades()
     LOGGER.debug("evaluated trades")
     LOGGER.debug("=======  STATISTICS =======")
-    LOGGER.debug(f"Period analyzed: from {list_trades[0]} to "
-                 f"{list_trades[-1]}")
+    LOGGER.debug(f"Period analyzed: from {trade_parameters[0][-1]} to "
+                 f"{trade_parameters[-1][-1]}")
     LOGGER.debug(f"profit = {account.balance - account.initial_balance}")
     profit_list = [trade.profit for trade in trades_evaluated]
     LOGGER.debug(f"Max profit at once: {max(profit_list)}")
@@ -71,7 +76,7 @@ def test_SMA_Simulation():
         'balance': [x[2] for x in pickle_arguments]
     }).set_index('datetime')
     file_path = os.path.join(
-        OUTER_FOLDER_PATH, "data_analysis", "profit_dataframe.pickle")
+        OUTER_FOLDER_PATH, "profit_dataframe.pickle")
     with open(file_path, 'wb') as f:
         pickle.dump(pickle_df, f, pickle.HIGHEST_PROTOCOL)
     LOGGER.debug("File pickle dumped")

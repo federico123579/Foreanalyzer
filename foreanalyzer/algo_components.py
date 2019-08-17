@@ -11,6 +11,7 @@ import logging
 import pandas as pd
 
 import foreanalyzer.exceptions as exc
+from foreanalyzer._internal_utils import LoggingContext, resample_business
 
 LOGGER = logging.getLogger("foreanalyzer.algo_components")
 
@@ -23,6 +24,7 @@ class Indicator(metaclass=abc.ABCMeta):
     """Base class for financial tools (Indicators)"""
 
     def __init__(self, dataframe):
+        self.column_name: str
         self.dataframe_original = dataframe.copy()
         self.values = None
         self.dataframe_reduced = None
@@ -33,9 +35,10 @@ class Indicator(metaclass=abc.ABCMeta):
     def _execute(self, *args):
         """Execute calculations"""
 
-    @abc.abstractmethod
     def _reindex_data(self, *args):
         """Return full dataframe"""
+        return self.values.reindex(
+            self.dataframe_original.index).ffill()
 
     def reduce(self, timeframe):
         """Redute to timeframe (expressed in seconds)
@@ -44,7 +47,7 @@ class Indicator(metaclass=abc.ABCMeta):
         if not isinstance(timeframe, int):
             raise ValueError("timeframe refers to int seconds")
         df = self.dataframe_original.copy()
-        df = df.resample(f'{timeframe}S').asfreq()
+        df = resample_business(df, timeframe)
         self.dataframe_reduced = df.copy()
         self.status['reduced_freq'] = timeframe
         self.status['reduced'] = 1
@@ -86,15 +89,13 @@ class SMA(Indicator):
     """Simple Moving Average"""
 
     def __init__(self, dataframe, period, timeframe):
-        """
-        :param period: int number
-        :param timeframe: int number of seconds
-        """
+        """:param period: int number
+           :param timeframe: int number of seconds"""
         # indicator parameters
         self.period = period
         self.timeframe = timeframe
         # name of new df column
-        self.column_name = 'sma'
+        self.column_name = f'sma_{self.period}'
         super().__init__(dataframe)
         LOGGER.debug(f"SMA inited with period {period} and timeframe of "
                      f"{timeframe}")
@@ -105,9 +106,32 @@ class SMA(Indicator):
             self.period).mean().rename(self.column_name)
         return self.values
 
-    def _reindex_data(self):
-        df = self.values.reindex(self.dataframe_original.index).ffill()
-        return df
+
+class EMA(Indicator):
+    """Exponential Moving Average, from a SMA"""
+
+    def __init__(self, dataframe, period, timeframe):
+        """:param period: int number
+           :param timeframe: int number of seconds"""
+        # indicator parameters
+        self.period = period
+        self.timeframe = timeframe
+        self.multiplier = 2 / (self.period + 1)
+        # name of new df column
+        self.column_name = f'ema_{self.period}'
+        super().__init__(dataframe)
+        with LoggingContext(LOGGER, level=logging.ERROR):
+            self.sma = SMA(dataframe, period, timeframe)
+        LOGGER.debug(f"EMA inited with period {period} and timeframe of "
+                     f"{timeframe}")
+
+    def _execute(self):
+        with LoggingContext(LOGGER, level=logging.ERROR):
+            self.sma.submit()
+        df = self.reduce(self.timeframe)
+        self.values = df['close'].ewm(com=self.period).mean().rename(
+            self.column_name)
+        return self.values
 
 
 # ============================== FACTORIES ==============================
@@ -116,7 +140,8 @@ class SMA(Indicator):
 # ============================== FACTORIES ==============================
 
 IndicatorFactory = {
-    'SMA': SMA
+    'SMA': SMA,
+    'EMA': EMA
 }
 
 
@@ -130,4 +155,23 @@ class AlgoDataframe(object):
     def __init__(self, currency, dataframe):
         self.currency = currency
         self.dataframe = dataframe
+        self.indicator_names = []
+        self._indicator_list = []  # list for future recall
+
+    def add_indicator(self, name):
+        self.indicator_names.append(name)
+
+    def merge_indicators(self):
+        """Merge indicators in each dataframe creating more columns"""
+        # update list of indicators to recall
+        if len(self.indicator_names) != len(self._indicator_list):
+            for name in self.indicator_names:
+                self._indicator_list.append(getattr(self, name))
+        for indicator in self._indicator_list:
+            self.dataframe[indicator.column_name] = indicator.reindex_data()
+        return self.dataframe
+
+    def resample(self, timeframe_seconds):
+        """Resample dataframe and return"""
+        return resample_business(self.dataframe, timeframe_seconds)
 

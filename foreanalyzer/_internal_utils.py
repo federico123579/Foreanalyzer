@@ -57,6 +57,17 @@ STR_CURRENCIES = [x.value for x in CURRENCY]
 INVERTED_MODE = {'buy': 'sell', 'sell': 'buy'}
 
 
+def conv_str_enum(string_to_conv, enu_to_conv):
+    if not isinstance(string_to_conv, enu_to_conv):
+        if string_to_conv in [x.value for x in enu_to_conv]:
+            return [curr for curr in CURRENCY
+                    if curr.value == string_to_conv][0]
+        else:
+            raise CurrencyNotListed(string_to_conv)
+    else:
+        return string_to_conv
+
+
 def read_config():
     """read configuration file"""
     filename = os.path.join(OUTER_FOLDER_PATH, 'config.yml')
@@ -64,6 +75,13 @@ def read_config():
         config = yaml.load(f, Loader=yaml.FullLoader)
     LOGGER.debug("read config")
     return config
+
+
+def resample_business(dataframe, timeframe_seconds):
+    """Resample dataframe only with business day"""
+    df = dataframe.resample(f"{timeframe_seconds}S").asfreq()
+    return df[df.index.dayofweek < 5]
+
 
 
 def unzip_data(folder, zip_file_basename: str):
@@ -83,17 +101,6 @@ def unzip_data(folder, zip_file_basename: str):
         basename = os.path.join(new_folder, zip_file_basename)
         os.rename(basename + '.txt', basename + '.csv')
         return 1
-
-
-def conv_str_enum(string_to_conv, enu_to_conv):
-    if not isinstance(string_to_conv, enu_to_conv):
-        if string_to_conv in [x.value for x in enu_to_conv]:
-            return [curr for curr in CURRENCY
-                    if curr.value == string_to_conv][0]
-        else:
-            raise CurrencyNotListed(string_to_conv)
-    else:
-        return string_to_conv
 
 
 class SingletonMeta(type):
@@ -123,3 +130,27 @@ class StatusComponent(object):
     def shutdown(self):
         self.status = STATUS.OFF
         LOGGER.debug(f"{self.__class__.__name__} shutdown")
+
+
+class LoggingContext(object):
+    def __init__(self, logger, level=None, handler=None, close=True):
+        self.logger = logger
+        self.level = level
+        self.handler = handler
+        self.close = close
+
+    def __enter__(self):
+        if self.level is not None:
+            self.old_level = self.logger.level
+            self.logger.setLevel(self.level)
+        if self.handler:
+            self.logger.addHandler(self.handler)
+
+    def __exit__(self, et, ev, tb):
+        if self.level is not None:
+            self.logger.setLevel(self.old_level)
+        if self.handler:
+            self.logger.removeHandler(self.handler)
+        if self.handler and self.close:
+            self.handler.close()
+        # implicit return of None => don't swallow exceptions

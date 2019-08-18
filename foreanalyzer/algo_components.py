@@ -8,6 +8,7 @@ Contains all indicators.
 import abc
 import logging
 
+import numpy as np
 import pandas as pd
 
 import foreanalyzer.exceptions as exc
@@ -134,6 +135,34 @@ class EMA(Indicator):
         return self.values
 
 
+class BolligerBands(Indicator):
+    """Bolliger Bands indicator"""
+
+    def __init__(self, dataframe, timeframe, period=20, multiplier=2):
+        """:param period: int number
+           :param timeframe: int number of seconds"""
+        # indicator parameters
+        self.period = period
+        self.timeframe = timeframe
+        self.multiplier = multiplier
+        # name of new df column
+        self.column_name = f'BollBands_{self.period}'
+        super().__init__(dataframe)
+        LOGGER.debug(f"Bolliger Bands inited period: {period} "
+                     f"timeframe: {timeframe} multiplier: {multiplier}")
+
+    def _execute(self):
+        df = self.reduce(self.timeframe)
+        t_price = (df['high'] + df['low'] + df['close']) / 3
+        ma_series = t_price.rolling(self.period).mean()
+        std_series = t_price.rolling(self.period).apply(np.std, raw=True)
+        bol_up = ma_series + self.multiplier * std_series
+        bol_dw = ma_series - self.multiplier * std_series
+        self.values = pd.DataFrame(data={f'{self.column_name}_up': bol_up,
+                                         f'{self.column_name}_down': bol_dw})
+        return self.values
+
+
 # ============================== FACTORIES ==============================
 # This factory serves as a link to indicator for string_to_object
 # initialization and execution.
@@ -141,7 +170,8 @@ class EMA(Indicator):
 
 IndicatorFactory = {
     'SMA': SMA,
-    'EMA': EMA
+    'EMA': EMA,
+    'BOLL': BolligerBands
 }
 
 
@@ -168,7 +198,12 @@ class AlgoDataframe(object):
             for name in self.indicator_names:
                 self._indicator_list.append(getattr(self, name))
         for indicator in self._indicator_list:
-            self.dataframe[indicator.column_name] = indicator.reindex_data()
+            indicator_reindexed = indicator.reindex_data()
+            if isinstance(indicator_reindexed, pd.Series):
+                self.dataframe[indicator.column_name] = indicator_reindexed
+            elif isinstance(indicator_reindexed, pd.DataFrame):
+                for column in indicator_reindexed:
+                    self.dataframe[column] = indicator_reindexed[column]
         return self.dataframe
 
     def resample(self, timeframe_seconds):

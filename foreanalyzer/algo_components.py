@@ -104,7 +104,7 @@ class SMA(Indicator):
     def _execute(self):
         df = self.reduce(self.timeframe)
         self.values = df['close'].rolling(
-            self.period).mean().rename(self.column_name)
+            self.period, min_periods=1).mean().rename(self.column_name)
         return self.values
 
 

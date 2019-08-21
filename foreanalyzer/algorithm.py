@@ -5,7 +5,10 @@ foreanalyzer.algorithm
 Base algorithm module.
 """
 
+import abc
 import logging
+
+import pandas as pd
 
 import foreanalyzer._internal_utils as internal
 import foreanalyzer.algo_components as alco
@@ -24,7 +27,7 @@ LOGGER = logging.getLogger("foreanalyzer.algo")
 # access from dataframe object.
 # ============================== ALGORITHM ==============================
 
-class BaseAlgorithm(object):
+class BaseAlgorithm(metaclass=abc.ABCMeta):
     """Base Algorithm implementation
     Read conf from imput and accept indicators and args for them"""
 
@@ -34,6 +37,7 @@ class BaseAlgorithm(object):
             indicators = [{'name': "SMA", 'args':
                              {'period': .., 'timeframe': ..}}]
         """
+        self.timeframe: int
         config = internal.read_config()
         if name not in config.keys():
             raise ValueError(f"{name} not in config")
@@ -43,6 +47,7 @@ class BaseAlgorithm(object):
         self.config = config[name]
         currencies = self.config['currencies']
         range_of_values = self.config['range_of_values']
+        self.duplicate_protection = self.config['duplicate_protection']
         self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
                            for curr in currencies]
         self._data_handler = DataHandler(range_of_values)
@@ -51,6 +56,32 @@ class BaseAlgorithm(object):
         self.dataframes = {}  # store dataframe objects
         self.status = {'exe': 0}
         LOGGER.debug("BaseAlgorithm inited")
+
+    @abc.abstractmethod
+    def _open_long_signal_formula(self, df_obj):
+        """Return a list of buy signals, dateteimes with index
+        return a dataframe objects"""
+
+    @abc.abstractmethod
+    def _open_short_signal_formula(self, df_obj):
+        """Return a list of sell signals, dateteimes with index
+        return a dataframe objects"""
+
+    def _add_indicator_conf(self, name_of_indicator, **kwargs):
+        """create a configuration of an indicator"""
+        if name_of_indicator not in alco.IndicatorFactory.keys():
+            raise exc.IndicatorNotListed(name_of_indicator)
+        # add timeframe from algo
+        kwargs.update({'timeframe': self.timeframe})
+        indicator_conf = {
+            'name': name_of_indicator,
+            'args': kwargs}
+        return indicator_conf
+
+    def _check_if_setup(self):
+        """check if algo has already been executed"""
+        if not self.status['exe']:
+            raise exc.AlgorithmNotExecuted()
 
     def _init_indicators(self):
         """Init indicators here
@@ -76,6 +107,17 @@ class BaseAlgorithm(object):
                 LOGGER.debug(f"executing {indicator} for {currency}")
                 getattr(df, indicator).submit()
 
+    def _remove_duplicates(self, raw_signals, level=8):
+        """Removes signals too close to each other, taking a single one
+        from a more signals, level represent the number of timeframe interval
+        to wait before a new signal can be verified"""
+        datetimes = pd.Series(raw_signals)
+        reduced_signals = datetimes[datetimes.diff().map(
+            lambda x: True if x.total_seconds() > self.timeframe * level
+            else False)].values
+        LOGGER.debug(f"Signals reduced to {len(reduced_signals)}")
+        return reduced_signals
+
     def setup(self):
         """Setup for the algo, init and execute indicators
         Call the setup directives, initing and executing all indicators."""
@@ -87,3 +129,22 @@ class BaseAlgorithm(object):
         self.status['exe'] = 1
         LOGGER.debug("BaseAlgorithm setup")
 
+    def get_open_signals(self, currency):
+        """get the open signals for a currency, polished and ready to be
+        executed on the market"""
+        df_obj = self.dataframes[currency]
+        df_obj.merge_indicators()
+        long_signals = self._open_long_signal_formula(df_obj).index
+        short_signals = self._open_short_signal_formula(df_obj).index
+        LOGGER.debug(f"got {len(long_signals) + len(short_signals)} raw signals")
+        reduced_long_signals = self._remove_duplicates(
+            long_signals, level=self.duplicate_protection)
+        reduced_short_signals = self._remove_duplicates(
+            short_signals, level=self.duplicate_protection)
+        long_signals = pd.Series(index=reduced_long_signals,
+                                 data=internal.MODE.buy.value)
+        short_signals = pd.Series(index=reduced_short_signals,
+                                  data=internal.MODE.sell.value)
+        signals = pd.concat([long_signals, short_signals])
+        LOGGER.debug(f"got a total of {len(signals)} true signals")
+        return signals

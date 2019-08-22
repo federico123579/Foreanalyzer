@@ -7,10 +7,11 @@ Load data from csv files.
 
 import logging
 import os.path
+import pickle
 
 import pandas as pd
 
-import foreanalyzer._internal_utils
+import foreanalyzer._internal_utils as internal
 
 LOGGER = logging.getLogger("foreanalyzer.data")
 
@@ -37,22 +38,31 @@ class Dataframe(object):
     """hold pandas  dataframe object from csv files"""
 
     def __init__(self, currency, range_of_values: int):
-        if currency not in foreanalyzer._internal_utils.CURRENCY:
+        if currency not in internal.CURRENCY:
             raise ValueError("Instrument not accepted")
-        self._folder = os.path.join(
-            foreanalyzer._internal_utils.FOLDER_PATH, 'data')
-        self._parent_folder = os.path.join(
-            foreanalyzer._internal_utils.OUTER_FOLDER_PATH, 'data')
+        self._folder = os.path.join(internal.FOLDER_PATH, 'data')
+        self._parent_folder = os.path.join(internal.OUTER_FOLDER_PATH, 'data')
         self.currency = currency
         self.range_of_values = range_of_values
         self.data = None
 
     def load(self):
         """load the dataframe with data"""
-        foreanalyzer._internal_utils.unzip_data(self._parent_folder,
-                                                self.currency.value)
-        file_path = os.path.join(self._folder, self.currency.value + '.csv')
-        df = normalise_df(pd.read_csv(file_path), self.range_of_values)
+        # save file on algo_efficiency
+        file_name = f"{self.currency.value}_{self.range_of_values}"
+        p_file_path = os.path.join(
+            internal.FOLDER_PATH, 'algo_efficency', f"{file_name}.pickle")
+        if os.path.isfile(p_file_path):
+            LOGGER.debug(f"{file_name} pickle found")
+            with open(p_file_path, 'rb') as f:
+                df = pickle.load(f)
+        else:
+            LOGGER.debug(f"{file_name} pickle not found")
+            internal.unzip_data(self._parent_folder, self.currency.value)
+            file_path = os.path.join(self._folder, self.currency.value + '.csv')
+            df = normalise_df(pd.read_csv(file_path), self.range_of_values)
+            with open(p_file_path, 'wb') as f:
+                pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
         self.data = df
         return df
 
@@ -68,6 +78,6 @@ class DataHandler(object):
     def __init__(self, range_of_values: int):
         self.dataframes = {}
         self.range_of_values = range_of_values
-        for currency in foreanalyzer._internal_utils.CURRENCY:
+        for currency in internal.CURRENCY:
             self.dataframes[currency] = Dataframe(currency, range_of_values)
 

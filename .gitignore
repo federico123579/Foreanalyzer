@@ -1,6 +1,7 @@
 ### Personal
 config.yml
 *.log*
+*.pickle
 
 ### Distribution
 *.egg-info/

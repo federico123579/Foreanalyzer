@@ -159,7 +159,8 @@ class BolligerBands(Indicator):
         bol_up = ma_series + self.multiplier * std_series
         bol_dw = ma_series - self.multiplier * std_series
         self.values = pd.DataFrame(data={f'{self.column_name}_up': bol_up,
-                                         f'{self.column_name}_down': bol_dw})
+                                         f'{self.column_name}_down': bol_dw,
+                                         f'{self.column_name}_ma': ma_series})
         return self.values
 
 

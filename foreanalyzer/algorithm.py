@@ -37,7 +37,6 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
             indicators = [{'name': "SMA", 'args':
                              {'period': .., 'timeframe': ..}}]
         """
-        self.timeframe: int
         config = internal.read_config()
         if name not in config.keys():
             raise ValueError(f"{name} not in config")
@@ -45,17 +44,25 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
             if indi['name'] not in alco.IndicatorFactory.keys():
                 raise exc.IndicatorNotListed(indi['name'])
         self.config = config[name]
-        currencies = self.config['currencies']
-        range_of_values = self.config['range_of_values']
+        self.timeframe: int
+        self.update_freq = self.config['update_freq']
         self.duplicate_protection = self.config['duplicate_protection']
+        currencies = self.config['currencies']
         self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
                            for curr in currencies]
+        range_of_values = self.config['range_of_values']
         self._data_handler = DataHandler(range_of_values)
         self._indicators = indicators  # list of indicator configuration
         self._stock_data = self._data_handler.dataframes
         self.dataframes = {}  # store dataframe objects
         self.status = {'exe': 0}
         LOGGER.debug("BaseAlgorithm inited")
+
+    @abc.abstractmethod
+    def _close_signal_formula(self, df_obj, signals_df):
+        """Accept as input the df_obj & the dataframe output of
+        self.get_open_signals and return a dataframe with open_date
+        and close_date"""
 
     @abc.abstractmethod
     def _open_long_signal_formula(self, df_obj):
@@ -128,6 +135,13 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         self._execute_indicators()
         self.status['exe'] = 1
         LOGGER.debug("BaseAlgorithm setup")
+
+    def get_close_signals(self, currency, signals_df):
+        """get the output of self.get_open_signals and return close signals"""
+        df_obj = self.dataframes[currency]
+        signals = self._close_signal_formula(df_obj, signals_df)
+        LOGGER.debug(f"got close signals")
+        return signals
 
     def get_open_signals(self, currency):
         """get the open signals for a currency, polished and ready to be

@@ -59,10 +59,16 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         LOGGER.debug("BaseAlgorithm inited")
 
     @abc.abstractmethod
-    def _close_signal_formula(self, df_obj, signals_df):
-        """Accept as input the df_obj & the dataframe output of
-        self.get_open_signals and return a dataframe with open_date
-        and close_date"""
+    def _close_long_signal_formula(self, datetime_range, signals_df, df_obj):
+        """Accept as input the range of values after the open signal, df_obj
+        and the dataframe output of self.get_open_signals and return a
+        dataframe with open_date and close_date"""
+
+    @abc.abstractmethod
+    def _close_short_signal_formula(self, datetime_range, signals_df, df_obj):
+        """Accept as input the range of values after the open signal, df_obj
+        and the dataframe output of self.get_open_signals and return a
+        dataframe with open_date and close_date"""
 
     @abc.abstractmethod
     def _open_long_signal_formula(self, df_obj):
@@ -139,9 +145,23 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
     def get_close_signals(self, currency, signals_df):
         """get the output of self.get_open_signals and return close signals"""
         df_obj = self.dataframes[currency]
-        signals = self._close_signal_formula(df_obj, signals_df)
+        df = df_obj.resample(self.update_freq).dropna()
+        signals = []
+        for datetime, mode in signals_df.iteritems():
+            datetime_range = df.loc[datetime:]
+            if mode == internal.MODE.buy.value:
+                signal = self._close_long_signal_formula(
+                    datetime_range, signals_df, df_obj)
+            elif mode == internal.MODE.sell.value:
+                signal = self._close_short_signal_formula(
+                    datetime_range, signals_df, df_obj)
+            open_pr = datetime_range.iloc[0]['open']
+            close_pr = signal['close']
+            signals.append([datetime, signal.name, open_pr, close_pr, mode])
         LOGGER.debug(f"got close signals")
-        return signals
+        return pd.DataFrame(columns=['open_datetime', 'close_datetime',
+                                     'open_price', 'close_price', 'mode'],
+                            data=signals)
 
     def get_open_signals(self, currency):
         """get the open signals for a currency, polished and ready to be
@@ -159,6 +179,6 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
                                  data=internal.MODE.buy.value)
         short_signals = pd.Series(index=reduced_short_signals,
                                   data=internal.MODE.sell.value)
-        signals = pd.concat([long_signals, short_signals])
+        signals = pd.concat([long_signals, short_signals]).sort_index()
         LOGGER.debug(f"got a total of {len(signals)} true signals")
         return signals

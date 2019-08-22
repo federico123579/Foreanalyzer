@@ -11,7 +11,9 @@ import pickle
 
 import pandas as pd
 
-from foreanalyzer._internal_utils import CURRENCY, MODE, OUTER_FOLDER_PATH
+from foreanalyzer._internal_utils import (CURRENCY, MODE, OUTER_FOLDER_PATH,
+                                          STATE)
+from foreanalyzer.exceptions import FundsExhausted
 from foreanalyzer.account import Account
 from foreanalyzer.algo_components import SMA
 from foreanalyzer.algo_modules.boll_bands_1 import BolligerBands1
@@ -44,7 +46,13 @@ def test_SMA_Simulation():
         trade.close_datetime = close_date
         account.close_trade(trade.trade_id, close_pr)
     LOGGER.debug("setup trades")
-    trades_evaluated = account.evaluate_trades()
+    try:
+        trades_evaluated = account.evaluate_trades()
+    except FundsExhausted as e:
+        LOGGER.error(e)
+        trades_evaluated = [trade for trade in account.trades if trade.state ==
+                            STATE.EVALUATED]
+        trades_evaluated[-1].new_balance = 0
     LOGGER.debug("evaluated trades")
     LOGGER.debug("=======  STATISTICS =======")
     res_df = algo.dataframes[algo.currencies[0]].dataframe

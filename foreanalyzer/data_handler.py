@@ -46,12 +46,16 @@ class Dataframe(object):
         self.range_of_values = range_of_values
         self.data = None
 
+    def get_pickle_path(self):
+        """return the name of the file, accessed from the efficency module"""
+        file_name = f"{self.currency.value}_{self.range_of_values}.pickle"
+        return os.path.join(internal.FOLDER_PATH, 'algo_efficency', file_name)
+
     def load(self):
         """load the dataframe with data"""
         # save file on algo_efficiency
-        file_name = f"{self.currency.value}_{self.range_of_values}"
-        p_file_path = os.path.join(
-            internal.FOLDER_PATH, 'algo_efficency', f"{file_name}.pickle")
+        p_file_path = self.get_pickle_path()
+        file_name = os.path.basename(p_file_path).split('.')[0]
         if os.path.isfile(p_file_path):
             LOGGER.debug(f"{file_name} pickle found")
             with open(p_file_path, 'rb') as f:

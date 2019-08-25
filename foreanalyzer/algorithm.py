@@ -45,6 +45,8 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
                 raise exc.IndicatorNotListed(indi['name'])
         self.config = config[name]
         self.timeframe: int
+        self.take_profit = None
+        self.stop_loss = None
         self.update_freq = self.config['update_freq']
         self.duplicate_protection = self.config['duplicate_protection']
         currencies = self.config['currencies']
@@ -59,21 +61,16 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         LOGGER.debug("BaseAlgorithm inited")
 
     @abc.abstractmethod
-    def _close_long_signal_formula(self, datetime_range, signals_df, df_obj):
+    def _close_long_signal_formula(self, datetime_range, open_signal, df_obj):
         """Accept as input the range of values after the open signal, df_obj
         and the dataframe output of self.get_open_signals and return a
         dataframe with open_date and close_date"""
 
     @abc.abstractmethod
-    def _close_short_signal_formula(self, datetime_range, signals_df, df_obj):
+    def _close_short_signal_formula(self, datetime_range, open_signal, df_obj):
         """Accept as input the range of values after the open signal, df_obj
         and the dataframe output of self.get_open_signals and return a
         dataframe with open_date and close_date"""
-
-    @abc.abstractmethod
-    def _open_long_signal_formula(self, df_obj):
-        """Return a list of buy signals, dateteimes with index
-        return a dataframe objects"""
 
     @abc.abstractmethod
     def _open_short_signal_formula(self, df_obj):
@@ -95,6 +92,42 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         """check if algo has already been executed"""
         if not self.status['exe']:
             raise exc.AlgorithmNotExecuted()
+
+    def _get_stop_loss_on_long(self, dtime_range, close_sig):
+        """get stop loss"""
+        if self.stop_loss is not None:
+            _df = dtime_range[
+                dtime_range['close'] <= close_sig['close'] - self.stop_loss]
+            return _df.iloc[[0]] if not _df.empty else dtime_range.iloc[[-1]]
+        return dtime_range.iloc[[-1]]
+
+    def _get_stop_loss_on_short(self, dtime_range, close_sig):
+        """get stop loss"""
+        if self.stop_loss is not None:
+            _df = dtime_range[
+                dtime_range['close'] >= close_sig['close'] + self.stop_loss]
+            return _df.iloc[[0]] if not _df.empty else dtime_range.iloc[[-1]]
+        return dtime_range.iloc[[-1]]
+
+    def _get_take_profit_on_long(self, dtime_range, close_sig):
+        """get take profit"""
+        if self.take_profit is not None:
+            _df = dtime_range[
+                dtime_range['close'] >= close_sig['close'] + self.take_profit]
+            return _df.iloc[[0]] if not _df.empty else dtime_range.iloc[[-1]]
+        return dtime_range.iloc[[-1]]
+
+    def _get_take_profit_on_short(self, dtime_range, close_sig):
+        """get take profit"""
+        if self.take_profit is not None:
+            _df = dtime_range[
+                dtime_range['close'] <= close_sig['close'] - self.take_profit]
+            return _df.iloc[[0]] if not _df.empty else dtime_range.iloc[[-1]]
+        return dtime_range.iloc[[-1]]
+
+    def _open_long_signal_formula(self, df_obj):
+        """Return a list of buy signals, dateteimes with index
+        return a dataframe objects"""
 
     def _init_indicators(self):
         """Init indicators here
@@ -151,11 +184,11 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
             datetime_range = df.loc[datetime:]
             if mode == internal.MODE.buy.value:
                 signal = self._close_long_signal_formula(
-                    datetime_range, signals_df, df_obj)
+                    datetime_range, df.loc[datetime], df_obj)
             elif mode == internal.MODE.sell.value:
                 signal = self._close_short_signal_formula(
-                    datetime_range, signals_df, df_obj)
-            open_pr = datetime_range.iloc[0]['open']
+                    datetime_range, df.loc[datetime], df_obj)
+            open_pr = df.loc[datetime]['open']
             close_pr = signal['close']
             signals.append([datetime, signal.name, open_pr, close_pr, mode])
         LOGGER.debug(f"got close signals")

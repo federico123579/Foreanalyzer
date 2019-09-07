@@ -106,6 +106,7 @@ class Account(internal.StatusComponent):
         """close effectively all trades"""
         trade_n = 0
         tot_trades_n = len(self.trades)
+        self.api._check_login()
         for trade in self.trades:
             profit = trade.get_profit()
             if self.balance + profit < 0:

@@ -1,3 +1,9 @@
+# ====== ENGINE CONFIGURATION ======
+engine:
+    algorithms:
+        - AlgorithmName
+    initial_balance: int
+
 # ====== ACCOUNT CONFIGURATION ======
 account:
   username: username

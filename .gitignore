@@ -10,6 +10,7 @@ config.yml
 .pytest_cache/
 .venv
 .idea/
+.vscode/
 .ycm_extra_conf.py
 foreanalyzer/data/
 data_analysis/

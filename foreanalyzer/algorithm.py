@@ -44,6 +44,7 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
             if indi['name'] not in alco.IndicatorFactory.keys():
                 raise exc.IndicatorNotListed(indi['name'])
         self.config = config[name]
+        self.name = name
         self.timeframe: int
         self.take_profit = None
         self.stop_loss = None

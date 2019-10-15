@@ -158,9 +158,12 @@ class BolligerBands(Indicator):
         std_series = t_price.rolling(self.period).apply(np.std, raw=True)
         bol_up = ma_series + self.multiplier * std_series
         bol_dw = ma_series - self.multiplier * std_series
+        std_width = (bol_up - bol_dw).rolling(self.period).apply(np.std, raw=True)
+        width_series = std_width / std_width.rolling(self.period).mean()
         self.values = pd.DataFrame(data={f'{self.column_name}_up': bol_up,
                                          f'{self.column_name}_down': bol_dw,
-                                         f'{self.column_name}_ma': ma_series})
+                                         f'{self.column_name}_ma': ma_series,
+                                         f'{self.column_name}_width': width_series})
         return self.values
 
 

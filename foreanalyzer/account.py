@@ -7,8 +7,8 @@ Store the simulated Account object.
 
 import logging
 
-import foreanalyzer._internal_utils as internal
 from foreanalyzer import exceptions
+import foreanalyzer._internal_utils as internal
 from foreanalyzer.api_handler import ApiClient
 
 LOGGER = logging.getLogger("foreanalyzer.account")

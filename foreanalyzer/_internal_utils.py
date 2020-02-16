@@ -10,7 +10,7 @@ import os
 import os.path
 import zipfile
 from enum import Enum
-
+import numpy as np
 import yaml
 
 from foreanalyzer.exceptions import CurrencyNotListed
@@ -80,6 +80,19 @@ def read_config():
 def resample_business(dataframe, timeframe_seconds):
     """Resample dataframe only with business day"""
     df = dataframe.resample(f"{timeframe_seconds}S").asfreq()
+    return df[df.index.dayofweek < 5]
+
+
+def resample_change_period(dataframe, new_period):
+    def _get_val(series, ind):
+        if len(series) > 0:
+            return series[ind]
+        else:
+            return np.NAN
+
+    df = dataframe.resample(f"{new_period}S").agg(
+        {'open': lambda s: _get_val(s, 0), 'close': lambda s: _get_val(s,
+         -1), 'high': lambda s: s.max(), 'low': lambda s: s.min()})
     return df[df.index.dayofweek < 5]
 
 

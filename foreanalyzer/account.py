@@ -30,9 +30,15 @@ class Trade(object):
 
     def get_profit(self):
         """calculate profit according to api"""
-        profit = ApiClient().api.get_profit_calculation(
-            self.symbol.value, self.mode.value, self.volume, self.op_price,
-            self.cl_price)['profit']
+        #profit = ApiClient().api.get_profit_calculation(
+        #    self.symbol.value, self.mode.value, self.volume, self.op_price,
+        #    self.cl_price)['profit']
+        if self.mode.value == 0:
+            profit = ((self.cl_price - self.op_price - 0.00009) *
+                      self.volume * 100000)
+        if self.mode.value == 1:
+            profit = ((self.op_price - self.cl_price - 0.00009) *
+                     self.volume * 100000)
         self.profit = profit
         self.state = internal.STATE.EVALUATED
         LOGGER.debug(f"{profit}€ profit got")
@@ -47,14 +53,13 @@ class Trade(object):
 class Account(internal.StatusComponent):
     """virtual account"""
 
-    def __init__(self, initial_balance):
-        if not isinstance(initial_balance, int):
-            raise ValueError("initial balance must be an int")
+    def __init__(self):
+        config = internal.read_config()['account']
         self.client = ApiClient()
         self.api = self.client.api
         # account data
-        self.initial_balance = initial_balance
-        self.balance = initial_balance
+        self.initial_balance = config['initial_balance']
+        self.balance = config['initial_balance']
         self.margin = 0
         self.positions = {}  # for open trades
         self.trades = []  # for closed trades waiting to be evaluated
@@ -106,7 +111,6 @@ class Account(internal.StatusComponent):
         """close effectively all trades"""
         trade_n = 0
         tot_trades_n = len(self.trades)
-        self.api._check_login()
         for trade in self.trades:
             profit = trade.get_profit()
             if self.balance + profit < 0:

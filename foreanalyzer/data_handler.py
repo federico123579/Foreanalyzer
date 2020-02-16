@@ -8,10 +8,12 @@ Load data from csv files.
 import logging
 import os.path
 import pickle
+import time
 
 import pandas as pd
 
 import foreanalyzer._internal_utils as internal
+from foreanalyzer.api_handler import ApiClient
 
 LOGGER = logging.getLogger("foreanalyzer.data")
 
@@ -76,8 +78,39 @@ class Dataframe(object):
         self.data = None
 
 
+class LatestDataframe(Dataframe):
+    """check last values using api"""
+
+    def __init__(self, currency, timeframe, time_past):
+        super().__init__(currency, None)
+        self.timeframe = timeframe
+        self.time_past = time_past
+
+    def load(self):
+        """load from api"""
+        ApiClient().setup()
+        raw_values = ApiClient().api.get_chart_last_request(
+            self.currency.value, self.timeframe // 60, time.time() -
+                                                       self.time_past)
+        values = raw_values['rateInfos']
+        datetimes = [pd.to_datetime(x['ctm'] / 1000, unit='s').tz_localize(
+            'UTC').tz_convert('Europe/Berlin') for x in values]
+        opens = [x['open'] / 10 ** raw_values['digits'] for x in values]
+        closes = [(x['close'] + x['open']) / 10 ** raw_values['digits'] for x
+                   in values]
+        high = [(x['high'] + x['open']) / 10 ** raw_values['digits'] for x in
+                 values]
+        low = [(x['low'] + x['open']) / 10 ** raw_values['digits'] for x in
+                values]
+        candles_df = pd.DataFrame(data={'datetime': datetimes, 'open': opens,
+                                  'close': closes, 'high': high, 'low': low})
+        candles_df.set_index('datetime', inplace=True)
+        self.data = candles_df
+        return candles_df
+
+
 class DataHandler(object):
-    """handle Dataframe obejcts"""
+    """handle Dataframe objects"""
 
     def __init__(self, range_of_values: int):
         self.dataframes = {}
@@ -85,3 +118,14 @@ class DataHandler(object):
         for currency in internal.CURRENCY:
             self.dataframes[currency] = Dataframe(currency, range_of_values)
 
+
+class LatestDataHandler(object):
+    """handle LatestDataframe objects"""
+
+    def __init__(self, timeframe: int, time_past: int):
+        self.dataframes = {}
+        self.timeframe = timeframe
+        self.time_past = time_past
+        for currency in internal.CURRENCY:
+            self.dataframes[currency] = LatestDataframe(currency, timeframe,
+                                                        time_past)

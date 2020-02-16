@@ -30,8 +30,9 @@ class Engine(object):
         self.account = Account(self.initial_balance)
         self.algos = [getattr(mod, algo_name) for algo_name in algos_name]
 
-    def setup():
+    def setup(self):
         """setup account and algorithm"""
         self.account.setup()
         for algo in self.algos:
-            setattr(self
+            setattr(self, algo.name, algo)
+            algo.setup()

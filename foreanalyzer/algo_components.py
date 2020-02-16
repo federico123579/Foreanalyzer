@@ -7,6 +7,7 @@ Contains all indicators.
 
 import abc
 import logging
+import copy
 
 import numpy as np
 import pandas as pd
@@ -26,7 +27,7 @@ class Indicator(metaclass=abc.ABCMeta):
 
     def __init__(self, dataframe):
         self.column_name: str
-        self.dataframe_original = dataframe.copy()
+        self.dataframe_original = copy.deepcopy(dataframe)
         self.values = None
         self.dataframe_reduced = None
         self.dataframe_reindexed = None

@@ -7,13 +7,15 @@ Base algorithm module.
 
 import abc
 import logging
+import os.path
+import pickle
 
 import pandas as pd
 
 import foreanalyzer._internal_utils as internal
 import foreanalyzer.algo_components as alco
 import foreanalyzer.exceptions as exc
-from foreanalyzer.data_handler import DataHandler
+from foreanalyzer.data_handler import DataHandler, LatestDataHandler
 
 LOGGER = logging.getLogger("foreanalyzer.algo")
 
@@ -48,13 +50,16 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         self.timeframe: int
         self.take_profit = None
         self.stop_loss = None
+        self.save_for_eff = self.config['save_for_eff']
+        self.load_for_eff = self.config['load_for_eff']
         self.update_freq = self.config['update_freq']
         self.duplicate_protection = self.config['duplicate_protection']
         currencies = self.config['currencies']
         self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
                            for curr in currencies]
         range_of_values = self.config['range_of_values']
-        self._data_handler = DataHandler(range_of_values)
+        #self._data_handler = DataHandler(range_of_values)
+        self._data_handler = LatestDataHandler(self.update_freq, 60*60*24*30)
         self._indicators = indicators  # list of indicator configuration
         self._stock_data = self._data_handler.dataframes
         self.dataframes = {}  # store dataframe objects
@@ -158,30 +163,76 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         """Removes signals too close to each other, taking a single one
         from a more signals, level represent the number of timeframe interval
         to wait before a new signal can be verified"""
+
+        def _tot_secs(dt_df):
+            return dt_df.diff().map(lambda x: x.total_seconds())
+
+        LOGGER.debug("removing duplicates...")
+        interval = self.timeframe * level
         datetimes = pd.Series(raw_signals)
-        reduced_signals = datetimes[datetimes.diff().map(
-            lambda x: True if x.total_seconds() > self.timeframe * level
-            else False)].values
+        while len(datetimes[_tot_secs(datetimes) < interval]) > 0:
+            index_to_drop = datetimes[_tot_secs(datetimes) <= interval].index
+            pair_count = 2 # used to drop alternate
+            for ind in index_to_drop:
+                if pair_count % 2 == 0:
+                    datetimes.drop(index=ind, inplace=True)
+                pair_count += 1
+        reduced_signals = datetimes[_tot_secs(datetimes) > interval]
         LOGGER.debug(f"Signals reduced to {len(reduced_signals)}")
         return reduced_signals
+
+    def _get_pickle_path_eff(self):
+        """save a pickle for later uses, improve efficiency over various
+        iterations"""
+        ind = '_'.join([f"{x['name']}_{x['args']['period']}" for x in
+                        self._indicators])
+        file_name = f"{self.name}_{self.timeframe}_{ind}.pickle"
+        return os.path.join(internal.FOLDER_PATH, 'algo_efficency', file_name)
+
+    def _load_pickle_eff(self):
+        """save a pickle for later uses, improve efficiency over various
+        iterations"""
+        file_path = self._get_pickle_path_eff()
+        if os.path.isfile(file_path) and self.load_for_eff:
+            LOGGER.debug("LOADING algo from pickle")
+            with open(file_path, 'rb') as f:
+                return pickle.load(f)
+        else:
+            return self
+
+    def _save_pickle_eff(self):
+        """save a pickle for later uses, improve efficiency over various
+        iterations"""
+        file_path = self._get_pickle_path_eff()
+        if not os.path.isfile(file_path) or self.save_for_eff:
+            LOGGER.debug("saving algo pickle")
+            with open(file_path, 'wb') as f:
+                pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
     def setup(self):
         """Setup for the algo, init and execute indicators
         Call the setup directives, initing and executing all indicators."""
+        if self.status['exe'] == 1:
+            LOGGER.debug("BaseAlgo already set up")
+            return
         for currency in self.currencies:
             self.dataframes[currency] = alco.AlgoDataframe(
                 currency, self._stock_data[currency].load())
         self._init_indicators()
         self._execute_indicators()
         self.status['exe'] = 1
+        self._save_pickle_eff()
         LOGGER.debug("BaseAlgorithm setup")
 
     def get_close_signals(self, currency, signals_df):
         """get the output of self.get_open_signals and return close signals"""
         df_obj = self.dataframes[currency]
-        df = df_obj.resample(self.update_freq).dropna()
+        df = df_obj.simple_resample(self.update_freq).dropna()
         signals = []
         for datetime, mode in signals_df.iteritems():
+            if datetime not in df.index:
+                LOGGER.debug(f"{datetime} bypassed")
+                continue
             datetime_range = df.loc[datetime:]
             if mode == internal.MODE.buy.value:
                 signal = self._close_long_signal_formula(
@@ -191,10 +242,14 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
                     datetime_range, df.loc[datetime], df_obj)
             open_pr = df.loc[datetime]['open']
             close_pr = signal['close']
-            signals.append([datetime, signal.name, open_pr, close_pr, mode])
+            # TODO: remove width
+            signals.append([datetime, signal.name, open_pr, close_pr, mode,
+                            signal['BollBands_10_width']])
         LOGGER.debug(f"got close signals")
+        # TODO: remove width
         return pd.DataFrame(columns=['open_datetime', 'close_datetime',
-                                     'open_price', 'close_price', 'mode'],
+                                     'open_price', 'close_price', 'mode',
+                                     'width'],
                             data=signals)
 
     def get_open_signals(self, currency):

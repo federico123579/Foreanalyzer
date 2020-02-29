@@ -2,12 +2,12 @@
 engine:
     algorithms:
         - AlgorithmName
-    initial_balance: int
 
 # ====== ACCOUNT CONFIGURATION ======
 account:
   username: username
   password: password
+  initial_balance: int
 
 # ====== ALGORITHM CONFIGURATION ======
 AlgortihmName:
@@ -19,3 +19,5 @@ AlgortihmName:
   duplicate_protection: int    # n times the timeframe of remove zone
   stop_loss: null
   take_profit: null
+  save_for_eff: boolean
+  load_for_eff: boolean

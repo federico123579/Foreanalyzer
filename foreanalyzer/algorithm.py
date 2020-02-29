@@ -227,7 +227,7 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
     def get_close_signals(self, currency, signals_df):
         """get the output of self.get_open_signals and return close signals"""
         df_obj = self.dataframes[currency]
-        df = df_obj.simple_resample(self.update_freq).dropna()
+        df = df_obj.resample(self.update_freq).dropna()
         signals = []
         for datetime, mode in signals_df.iteritems():
             if datetime not in df.index:

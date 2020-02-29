@@ -27,17 +27,16 @@ class BolligerBands1(BaseAlgorithm):
         self.timeframe = _conf[_name]['timeframe']
         # add indicators
         _boll = self._add_indicator_conf('BOLL', period=10, multiplier=2)
-        _sma3 = self._add_indicator_conf('SMA', period=10)
         _sma1 = self._add_indicator_conf('SMA', period=20)
         _sma2 = self._add_indicator_conf('SMA', period=100)
-        _indi_conf = [_boll, _sma1, _sma2, _sma3]
+        _indi_conf = [_boll, _sma1, _sma2]
         super().__init__(_name, _indi_conf)
         # defining stop loss and take profit
         self.stop_loss = _conf[_name]['stop_loss']
         self.take_profit = _conf[_name]['take_profit']
 
     def _open_long_signal_formula(self, df_obj):
-        df = df_obj.simple_resample(self.update_freq).dropna()
+        df = df_obj.resample(self.update_freq).dropna()
         import pickle
         with open("test_signals.pickle", 'wb') as f:
             pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
@@ -46,7 +45,7 @@ class BolligerBands1(BaseAlgorithm):
         return long_raw_signals
 
     def _open_short_signal_formula(self, df_obj):
-        df = df_obj.simple_resample(self.update_freq).dropna()
+        df = df_obj.resample(self.update_freq).dropna()
         short_raw_signals = df[(df['close'] > df['sma_20']) &
                               (df['close'] < df['sma_100'])]
         return short_raw_signals
@@ -89,14 +88,14 @@ class BolligerBands2(BaseAlgorithm):
         self.take_profit = _conf[_name]['take_profit']
 
     def _open_long_signal_formula(self, df_obj):
-        df = df_obj.simple_resample(self.update_freq).dropna()
+        df = df_obj.resample(self.update_freq).dropna()
         long_raw_signals = df[(df['close'] < df['BollBands_20_down']) &
                               (df['BollBands_20_width'] < 2) &
                               ((df.index.hour > 8) & (df.index.hour < 16))]
         return long_raw_signals
 
     def _open_short_signal_formula(self, df_obj):
-        df = df_obj.simple_resample(self.update_freq).dropna()
+        df = df_obj.resample(self.update_freq).dropna()
         short_raw_signals = df[(df['close'] > df['BollBands_20_up']) &
                                (df['BollBands_20_width'] < 2) &
                                ((df.index.hour > 8) & (df.index.hour < 16))]

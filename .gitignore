@@ -9,6 +9,8 @@ config.yml
 ### Testing
 .pytest_cache/
 .venv
+env
+venv
 .idea/
 .vscode/
 .ycm_extra_conf.py

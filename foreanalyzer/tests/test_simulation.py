@@ -13,12 +13,12 @@ import pandas as pd
 
 from foreanalyzer._internal_utils import (CURRENCY, MODE, OUTER_FOLDER_PATH,
                                           STATE)
-from foreanalyzer.exceptions import FundsExhausted
 from foreanalyzer.account import Account
-from foreanalyzer.algo_components import SMA
 from foreanalyzer.algo_modules.boll_bands_1 import BolligerBands1
+from foreanalyzer.exceptions import FundsExhausted
 
 LOGGER = logging.getLogger("foreanalyzer.tests.test_simulation")
+logging.getLogger("XTBApi").setLevel(logging.ERROR)
 
 
 def test_SMA_Simulation():

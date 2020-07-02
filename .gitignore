@@ -8,6 +8,7 @@ config.yml
 
 ### Testing
 .pytest_cache/
+.ipynb_checkpoints/
 .venv
 env
 venv

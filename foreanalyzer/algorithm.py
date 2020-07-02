@@ -53,13 +53,14 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
         self.save_for_eff = self.config['save_for_eff']
         self.load_for_eff = self.config['load_for_eff']
         self.update_freq = self.config['update_freq']
+        self.start_analysis = self.config['start_analysis']
         self.duplicate_protection = self.config['duplicate_protection']
         currencies = self.config['currencies']
         self.currencies = [internal.conv_str_enum(curr, internal.CURRENCY)
                            for curr in currencies]
         range_of_values = self.config['range_of_values']
         #self._data_handler = DataHandler(range_of_values)
-        self._data_handler = LatestDataHandler(self.update_freq, 60*60*24*30)
+        self._data_handler = LatestDataHandler(self.update_freq, self.start_analysis)
         self._indicators = indicators  # list of indicator configuration
         self._stock_data = self._data_handler.dataframes
         self.dataframes = {}  # store dataframe objects
@@ -243,13 +244,11 @@ class BaseAlgorithm(metaclass=abc.ABCMeta):
             open_pr = df.loc[datetime]['open']
             close_pr = signal['close']
             # TODO: remove width
-            signals.append([datetime, signal.name, open_pr, close_pr, mode,
-                            signal['BollBands_10_width']])
+            signals.append([datetime, signal.name, open_pr, close_pr, mode])
         LOGGER.debug(f"got close signals")
         # TODO: remove width
         return pd.DataFrame(columns=['open_datetime', 'close_datetime',
-                                     'open_price', 'close_price', 'mode',
-                                     'width'],
+                                     'open_price', 'close_price', 'mode'],
                             data=signals)
 
     def get_open_signals(self, currency):

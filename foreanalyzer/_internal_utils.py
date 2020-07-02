@@ -79,7 +79,23 @@ def read_config():
 
 def resample_business(dataframe, timeframe_seconds):
     """Resample dataframe only with business day"""
-    df = dataframe.resample(f"{timeframe_seconds}S").asfreq()
+
+    def DFresampler(input):
+        if len(input) == 0:
+            return None
+        else:
+            if input.name == "open":
+                return input[0]
+            elif input.name == "close":
+                return input[-1]
+            elif input.name == "high":
+                return max(input)
+            elif input.name == "low":
+                return min(input)
+            else:
+                return input[-1]
+
+    df = dataframe.resample(f"{timeframe_seconds}S").apply(DFresampler)
     return df[df.index.dayofweek < 5]
 
 

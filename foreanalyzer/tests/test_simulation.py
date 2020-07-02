@@ -21,7 +21,7 @@ LOGGER = logging.getLogger("foreanalyzer.tests.test_simulation")
 logging.getLogger("XTBApi").setLevel(logging.ERROR)
 
 
-def test_SMA_Simulation():
+def test_Simulation():
     algo = BolligerBands1()
     account = Account()
     LOGGER.debug(f"testing {algo.__class__.__name__} with an account of "
@@ -49,7 +49,7 @@ def test_SMA_Simulation():
         # ? - stop testing new function
     # EXECUTE LONG
     # TODO: remove width
-    for open_date, close_date, open_pr, close_pr, mode, width in \
+    for open_date, close_date, open_pr, close_pr, mode in \
             close_sig.values:
         # DEFINE MODE AND VOLUME
         trade = account.open_trade(CURRENCY.EURUSD, MODE.buy if mode == 0 else
@@ -58,9 +58,16 @@ def test_SMA_Simulation():
         trade.close_price = close_pr
         trade.open_datetime = open_date
         trade.close_datetime = close_date
-        trade.width = width
         account.close_trade(trade.trade_id, close_pr)
     LOGGER.debug("setup trades")
+    # PICKLE DUMP
+    LOGGER.debug("dumping algo...")
+    file_path_test = os.path.join(
+        OUTER_FOLDER_PATH, "algo.pickle")
+    with open(file_path_test, 'wb') as f:
+        pickle.dump(algo, f, pickle.HIGHEST_PROTOCOL)
+    LOGGER.debug("finished dumping")
+    # END DUMP
     try:
         trades_evaluated = account.evaluate_trades()
     except FundsExhausted as e:
@@ -82,7 +89,7 @@ def test_SMA_Simulation():
     # TODO: remove width
     pickle_arguments = [[tr.open_datetime, tr.close_datetime, tr.mode.value,
                          tr.open_price, tr.close_price, tr.profit,
-                         tr.new_balance, tr.width] for tr in
+                         tr.new_balance] for tr in
                         trades_evaluated]
     # TODO: remove width
     pickle_df = pd.DataFrame({
@@ -92,8 +99,7 @@ def test_SMA_Simulation():
         'open_price': [x[3] for x in pickle_arguments],
         'close_price': [x[4] for x in pickle_arguments],
         'profit': [x[5] for x in pickle_arguments],
-        'balance': [x[6] for x in pickle_arguments],
-        'width': [x[7] for x in pickle_arguments]
+        'balance': [x[6] for x in pickle_arguments]
     }).set_index('open_datetime')
     file_path_1 = os.path.join(
         OUTER_FOLDER_PATH, "profit_dataframe.pickle")
@@ -109,4 +115,4 @@ def test_SMA_Simulation():
 
 
 if __name__ == "__main__":
-    test_SMA_Simulation()
+    test_Simulation()

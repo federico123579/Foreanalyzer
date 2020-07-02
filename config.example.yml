@@ -14,6 +14,7 @@ AlgortihmName:
   currencies:                  # currencies to analyse
     - currency_name
   range_of_values: int         # length of dataframe gathered from csv
+  start_analysis: int          # start time of analysis with seconds * from now
   timeframe: int               # seconds of timeframe
   update_freq: int             # timeframe of closing prices, simulating the bot
   duplicate_protection: int    # n times the timeframe of remove zone

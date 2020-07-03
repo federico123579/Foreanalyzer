@@ -11,6 +11,7 @@ import os.path
 import zipfile
 from enum import Enum
 import numpy as np
+import json
 import yaml
 
 from foreanalyzer.exceptions import CurrencyNotListed
@@ -19,16 +20,16 @@ LOGGER = logging.getLogger("foreanalyzer.internal")
 
 
 # accepted currencies in analyzer
-class CURRENCY(Enum):
-    AUDUSD = "AUDUSD"
-    EURCHF = "EURCHF"
-    EURGBP = "EURGBP"
-    EURJPY = "EURJPY"
-    EURUSD = "EURUSD"
-    GBPUSD = "GBPUSD"
-    USDCAD = "USDCAD"
-    USDCHF = "USDCHF"
-    USDJPY = "USDJPY"
+ACC_CURRENCIES = [
+    "AUDUSD",
+    "EURCHF",
+    "EURGBP",
+    "EURJPY",
+    "EURUSD",
+    "GBPUSD",
+    "USDCAD",
+    "USDCHF",
+    "USDJPY"]
 
 
 # accepted modes in analyzer
@@ -53,28 +54,33 @@ class STATE(Enum):
 
 FOLDER_PATH = os.path.dirname(__file__)
 OUTER_FOLDER_PATH = os.path.dirname(os.path.dirname(__file__))
-STR_CURRENCIES = [x.value for x in CURRENCY]
 INVERTED_MODE = {'buy': 'sell', 'sell': 'buy'}
 
 
-def conv_str_enum(string_to_conv, enu_to_conv):
-    if not isinstance(string_to_conv, enu_to_conv):
-        if string_to_conv in [x.value for x in enu_to_conv]:
-            return [curr for curr in CURRENCY
-                    if curr.value == string_to_conv][0]
-        else:
-            raise CurrencyNotListed(string_to_conv)
-    else:
-        return string_to_conv
-
-
-def read_config():
+def read_ext_config():
     """read configuration file"""
     filename = os.path.join(OUTER_FOLDER_PATH, 'config.yml')
     with open(filename, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    LOGGER.debug("read config")
+    LOGGER.debug("read external yaml config")
     return config
+
+
+def read_int_config():
+    """read internal json config file"""
+    filename = os.path.join(OUTER_FOLDER_PATH, 'config.json')
+    with open(filename, 'r') as f:
+        config = json.load(f)
+        LOGGER.debug("read internal json config")
+        return config
+
+
+def write_int_config(data):
+    """read internal json config file"""
+    filename = os.path.join(OUTER_FOLDER_PATH, 'config.json')
+    with open(filename, 'w') as f:
+        config = json.dump(data, f)
+        LOGGER.debug("write internal json config")
 
 
 def resample_business(dataframe, timeframe_seconds):

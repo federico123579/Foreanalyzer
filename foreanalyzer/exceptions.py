@@ -71,3 +71,10 @@ class NotLogged(Exception):
         self.msg = "Login needed not done yet"
         LOGGER.error(self.msg)
         super().__init__(self.msg)
+
+
+class NotConfigurated(Exception):
+    def __init__(self):
+        self.msg = "Missing configuration"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)

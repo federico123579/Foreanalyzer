@@ -1,5 +1,6 @@
 ### Personal
 config.yml
+config.json
 *.log*
 *.pickle
 

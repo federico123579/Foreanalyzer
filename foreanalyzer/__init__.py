@@ -15,6 +15,7 @@ logging.config.dictConfig({
     },
     'handlers': {
         'console': {
+            'level': 'ERROR',
             'class': 'logging.StreamHandler',
             'formatter': 'deafult',
         },

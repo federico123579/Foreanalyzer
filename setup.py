@@ -17,7 +17,7 @@ DESCRIPTION = 'Algorithms analyzer for the Forecaster bot.'
 URL = 'https://github.com/federico123579/Foreanalyzer'
 EMAIL = 'federico123579@gmail.com'
 AUTHOR = 'Federico Lolli'
-REQUIRES_PYTHON = '>=3.6.0'
+REQUIRES_PYTHON = '>=3.8.0'
 VERSION = None
 
 # What packages are required for this module to be executed?
@@ -120,6 +120,10 @@ setup(
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
     install_requires=REQUIRED,
+    entry_points='''
+        [console_scripts]
+        foreanalyzer=foreanalyzer.cli:main
+    ''',
     extras_require=EXTRAS,
     include_package_data=True,
     license='MIT',
@@ -129,7 +133,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],

@@ -24,12 +24,17 @@ class CliConsole(metaclass=internal.SingletonMeta):
     each of these has its own color and debug is printed only if verbose
     parameter is set to ON"""
     def __init__(self):
-        self.console = rich.console.Console()
+        self.console = rich.get_console()
         self.verbose = False
-        self.log = self.console.log
+        self.prefix = None
 
     def _color_markup(self, text, color):
         return f"[{color}]" + str(text) + f"[/{color}]"
+
+    def log(self, text, *args, **kwargs):
+        if self.prefix != None:
+            text = self.prefix + " - " + text
+        return self.console.log(text, *args, **kwargs)
 
     def write(self, text, *attrs):
         self.console.print(text, style=' '.join(attrs))
@@ -70,10 +75,8 @@ def run():
             os.path.isfile(INTERNAL_CONFIG_FILE)):
         raise NotConfigurated()
     elif config['USE_THIS'] == True:
-        pass # let config be configured with the external config file
-        # TODO: maybe dump external config into internal
-    else:
-        config = internal.read_int_config()
+        internal.write_int_config(config)
+    config = internal.read_int_config()
 
 
 def _check_currencies_parameter(value):
@@ -103,32 +106,39 @@ def config(section):
     # set credentials
     if section in ['all', 'creds']:
         CliConsole().write("# CREDENTIAL CONFIG #", "yellow", "bold")
-        config['username'] = click.prompt("username")
-        config['passwd'] = click.prompt("password", hide_input=True)
-        CliConsole().debug(f"username: {config['username']} - " +
-                           f"password: {len(config['passwd'])*'*'}")
+        username = click.prompt("username")
+        passwd = click.prompt("password", hide_input=True)
+        CliConsole().debug(f"username: {username} - " +
+                           f"password: {len(passwd)*'*'}")
+        config['credentials'] = {'username': username, 'password': passwd}
     # set account settings
     if section in ['all', 'acc']:
         CliConsole().write("# ACCOUNT CONFIG #", "yellow", "bold")
-        config['initial_config'] = click.prompt(
+        initial_config = click.prompt(
             "initial balance", default=1000, show_default=True)
-        CliConsole().debug(f"initial money set: " +
-                           f"{config['initial_config']}")
+        CliConsole().debug(f"initial money set: {initial_config}")
+        count_margin = click.confirm("want to count margin?", default=False)
+        sim_profit = click.confirm("want to simulate profit?", default=True)
+        config['account'] = {
+            'initial_config': initial_config, 'count_margin': count_margin,
+            'simulate_profit': sim_profit}
     # setting algo settings
     if section in ['all', 'algo']:
         CliConsole().write("# ALGORITHM CONFIG #", "yellow", "bold")
         # currencies
-        config['currencies'] = click.prompt(
+        currencies = click.prompt(
             "currencies (codes separated by space)", default="EURUSD",
             show_default=True, value_proc=_check_currencies_parameter)
-        if not isinstance(config['currencies'], list): # uniform default EURUSD
-            config['currencies'] = [config['currencies']]
+        if not isinstance(currencies, list): # uniform default EURUSD
+            currencies = [currencies]
         CliConsole().debug(
-            f"currencies set: {', '.join(config['currencies'])}")
+            f"currencies set: {', '.join(currencies)}")
         # timeframe
-        config['timeframe'] = click.prompt(
+        timeframe = click.prompt(
             "timeframe (in seconds)", default=300, show_default=True, type=int)
-        CliConsole().debug(f"timeframe set: {config['timeframe']}")
+        CliConsole().debug(f"timeframe set: {timeframe}")
+        config['account'] = {
+            'currencies': currencies, 'timeframe': timeframe}
     # dump config data on internal config file
     internal.write_int_config(config)
     CliConsole().info("config data saved on internal json config file")

@@ -5,13 +5,15 @@ foreanalyzer.account
 Store the simulated Account object.
 """
 
-import logging
+from tqdm import tqdm
 
 from foreanalyzer import exceptions
 import foreanalyzer._internal_utils as internal
+from foreanalyzer.cli import CliConsole
 from foreanalyzer.api_handler import ApiClient
 
-LOGGER = logging.getLogger("foreanalyzer.account")
+LOGGER = CliConsole()
+LOGGER.prefix = 'account'
 
 
 class Trade(object):
@@ -28,17 +30,21 @@ class Trade(object):
         self.state = internal.STATE.OPEN
         LOGGER.debug(f"inited Trade #{self.trade_id}")
 
-    def get_profit(self):
-        """calculate profit according to api"""
-        #profit = ApiClient().api.get_profit_calculation(
-        #    self.symbol.value, self.mode.value, self.volume, self.op_price,
-        #    self.cl_price)['profit']
-        if self.mode.value == 0:
-            profit = ((self.cl_price - self.op_price - 0.00009) *
-                      self.volume * 100000)
-        if self.mode.value == 1:
-            profit = ((self.op_price - self.cl_price - 0.00009) *
-                     self.volume * 100000)
+    def get_profit(self, _mode=1):
+        """calculate profit according to api
+        0: real - 1: simulated
+        simulated set only for EURUSD"""
+        if _mode:
+            if self.mode.value == 0:
+                profit = ((self.cl_price - self.op_price - 0.00009) *
+                          self.volume * 100000)
+            if self.mode.value == 1:
+                profit = ((self.op_price - self.cl_price - 0.00009) *
+        else:
+            profit = ApiClient().api.get_profit_calculation(
+                self.symbol.value, self.mode.value, self.volume,
+                self.op_price, self.cl_price)['profit']
+                         self.volume * 100000)
         self.profit = profit
         self.state = internal.STATE.EVALUATED
         LOGGER.debug(f"{profit}€ profit got")
@@ -60,6 +66,8 @@ class Account(internal.StatusComponent):
         # account data
         self.initial_balance = config['initial_balance']
         self.balance = config['initial_balance']
+        self._count_margin = config['count_margin']
+        self._sim_profit = config['simulate_profit']
         self.margin = 0
         self.positions = {}  # for open trades
         self.trades = []  # for closed trades waiting to be evaluated
@@ -88,11 +96,12 @@ class Account(internal.StatusComponent):
     def open_trade(self, symbol, mode, volume, op_price):
         """open trade virtually"""
         self._check_status()
-        assert symbol in internal.CURRENCY
+        assert symbol in internal.ACC_CURRENCIES
         assert mode in internal.MODE
         trade = Trade(symbol, mode, volume, op_price, self._trade_count)
-        # margin = self.api.get_margin_trade(symbol.value, volume)['margin']
-        # self.margin += margin
+        if self._count_margin:
+            margin = self.api.get_margin_trade(symbol.value, volume)['margin']
+            self.margin += margin
         self.positions[trade.trade_id] = trade
         self._trade_count += 1
         LOGGER.info(f"trade of {volume} {symbol} #{trade.trade_id} opened")
@@ -111,16 +120,17 @@ class Account(internal.StatusComponent):
         """close effectively all trades"""
         trade_n = 0
         tot_trades_n = len(self.trades)
-        for trade in self.trades:
-            profit = trade.get_profit()
-            if self.balance + profit < 0:
-                self.balance = 0
-                raise exceptions.FundsExhausted()
-            else:
-                self.balance += profit
-                trade.new_balance = self.balance
-                trade_n += 1
-                LOGGER.debug(f"Trade {trade_n}° / {tot_trades_n} executed")
+        with tqdm(total=tot_trades_n) as pbar:
+            for trade in self.trades:
+                profit = trade.get_profit(self._sim_profit)
+                if self.balance + profit < 0:
+                    self.balance = 0
+                    raise exceptions.FundsExhausted()
+                else:
+                    self.balance += profit
+                    trade.new_balance = self.balance
+                    trade_n += 1
+                pbar.update(trade_n)
         n_tot_trades = len(self.trades)
         trades_to_del = [t for t in self.trades if t.state ==
                          internal.STATE.EVALUATED]

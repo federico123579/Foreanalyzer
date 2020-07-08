@@ -28,7 +28,7 @@ class ApiClient(metaclass=internal.SingletonMeta):
         if self.status == internal.STATUS.ON:
             LOGGER.debug("ApiClient already setup")
             return
-        config = internal.read_config()['account']
+        config = internal.read_int_config()['account']
         try:
             response = self.api.login(config['username'], config['password'])
         except XTBApi.exceptions.CommandFailed:

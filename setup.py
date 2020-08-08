@@ -22,11 +22,13 @@ VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    "forex_python",
+    #"forex_python",
     "XTBApi",
     "pandas",
     "PyYAML",
-    "numpy"
+    "numpy",
+    "click",
+    "rich"
 ]
 
 # What packages are optional?

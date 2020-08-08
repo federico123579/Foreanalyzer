@@ -12,8 +12,8 @@ account:
 
 # ====== ALGORITHM CONFIGURATION ======
 AlgortihmName:
-  currencies:                  # currencies to analyse
-    - currency_name
+  instruments:                  # instruments to analyse
+    - instrument_name
   range_of_values: int         # length of dataframe gathered from csv
   start_analysis: int          # start time of analysis with seconds * from now
   timeframe: int               # seconds of timeframe

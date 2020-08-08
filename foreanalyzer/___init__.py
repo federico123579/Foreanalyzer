@@ -1,0 +1,1 @@
+from foreanalyzer.__version__ import __version__

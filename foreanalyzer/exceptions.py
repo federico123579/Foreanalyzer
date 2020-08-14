@@ -17,6 +17,13 @@ class InstrumentNotListed(Exception):
         super().__init__(self.msg)
 
 
+class LoginFailed(Exception):
+    def __init__(self):
+        self.msg = "Login failed"
+        LOGGER.error(self.msg)
+        super().__init__(self.msg)
+
+
 class NotConfigurated(Exception):
     def __init__(self):
         self.msg = "Missing configuration"

@@ -3,15 +3,22 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 from abc import ABC
+import os.path
 
 import pandas as pd
 
+import foreanalyzer.cache_optimization as cache
 from foreanalyzer.console import CliConsole
+from foreanalyzer.feeder import FeederFactory
+import foreanalyzer.globals as glob
 
 
 # ~ * LOGGER * ~
-LOGGER = CliConsole()
-LOGGER.prefix = "plot_handler"
+LOGGER = CliConsole
+PREFIX = "plot_handler"
+
+def DEBUG(text):
+    LOGGER().debug(text, PREFIX)
 
 
 # ~~~ * HIGH LEVEL CLASSES * ~~~
@@ -31,7 +38,8 @@ class AbsPlotHandler(ABC):
     progressbar.
     ~~~~ * INPUT * ~~~~
     takes a dataframe with columns exactly datetime|price"""
-    def init(self):
+    def __init__(self, plotter_id):
+        self.plotter_id = plotter_id
         self._columns = list
         self.data = pd.DataFrame()
 
@@ -45,11 +53,67 @@ class CandlestickHandler(AbsPlotHandler):
     ~~~~ * INPUT * ~~~~
     takes a dataframe as input or check if the current input has the
     right columns."""
-    def __init__(self, input_dataframe, timeframe):
-        super().__init__(self)
-        self._input_dataframe = input_dataframe
+    # TODO: fix arguments order
+    def __init__(self, instruments: list, feeders: list, timeframe):
+        super().__init__('CDSPLT')
+        self.instruments = instruments
         # TODO: add accepted timeframes and conversion to globals
         self.timeframe = timeframe
+        self._supported_feeders = glob.SUPPORTED_FEEDERS[self.plotter_id]
+        if not all([f in self._supported_feeders for f in feeders]):
+            LOGGER().error(f"{[f for f in feeders if f not in self._supported_feeders]} not" +
+                         "supported, ignoring these...", PREFIX)
+        self.feeders = [[f, FeederFactory[f]] for f in feeders if f in self._supported_feeders]
+        self.data = {instr: {f: None for f in [f for f, _ in self.feeders]} for instr in self.instruments}
+
+    def feed(self): 
+        """init & starts feeders then refines data received to meet the requisites of the
+        plotter"""
+        # DEFINING RESAMPLER
+        def _resampler(input):
+            if len(input) == 0:
+                return None
+            else:
+                if input.name == "open":
+                    return input[0]
+                elif input.name == "close":
+                    return input[-1]
+                elif input.name == "high":
+                    return max(input)
+                elif input.name == "low":
+                    return min(input)
+                else:
+                    return input[-1]
+        # FEED main function
+        for instr in self.instruments:
+            DEBUG(f"feeding {self.plotter_id} with {instr}")
+            for feeder_id, _feeder in self.feeders:
+                DEBUG(f"current feeding {feeder_id}")
+                if feeder_id == 'ZIPF01':
+                    feeder = _feeder(instr)
+                    feeder.setup()
+                    df = feeder.process_dataframe()
+                    feeder.shutdown()
+                    # cache optimization
+                    filepath = cache.cache_path(
+                        ['plotters', self.plotter_id, feeder_id],
+                        [instr, 'Rv1', f"{self.timeframe}S"])
+                    if os.path.isfile(filepath):
+                        df = cache.load_cache(filepath)
+                    else:
+                        # resampling
+                        df = df.resample(f"{self.timeframe}S").apply(_resampler).dropna()
+                        cache.save_cache(filepath, df)
+                    self.data[instr][feeder_id] = df
+                elif feeder_id == 'XTBF01':
+                    feeder = _feeder(instr, self.timeframe, 1000) # FIXME
+                    feeder.setup()
+                    df = feeder.process_dataframe()
+                    feeder.shutdown()
+                    self.data[instr][feeder_id] = df
+                else:
+                    LOGGER().error(f"{feeder_id} not fully supported for {self.plotter_id}", PREFIX)
+        return self.data
     
     def plot(self):
         """plot the chart with data and process the Dataframe"""
@@ -61,7 +125,7 @@ class KajiHandler(AbsPlotHandler):
     ~~~~ * INPUT * ~~~~
     takes a dataframe as input or check if the current input is already a kaji
     input"""
-    raise NotImplementedError
+    pass
 
 
 # ~~~ * LOV LEVEL UTILY FUNCTIONS * ~~~
@@ -71,9 +135,9 @@ def check_existing_chart(input_dataframe, columns_to_check):
     input_dataframe: a dataframe input of PlotHandler
     columns_to_check: a list of labels of columns, this will be compared with
     the list in the _columns parameter."""
-    raise NotImplementedError
+    pass
 
 
 def set_datetime_index(input_dataframe):
     """set datetime columns given by a feeder as index in chart"""
-    raise NotImplementedError
+    pass

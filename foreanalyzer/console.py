@@ -25,7 +25,6 @@ logging.config.dictConfig({
     },
     'handlers': {
         'console': {
-            'level': 'ERROR',
             'class': 'logging.StreamHandler',
             'formatter': 'deafult',
         },
@@ -42,11 +41,17 @@ logging.config.dictConfig({
         '': {
             'handlers': ['console'],
             'level': 'ERROR',
-            #'propagate': True
+            'propagate': False
         },
         'foreanalyzer': {
             'handlers': ['rotating'],
-            'level': 'DEBUG'
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'XTBApi': {
+            'handlers': ['rotating'],
+            'level': 'DEBUG',
+            'propagate': False
         }
     }
 })
@@ -62,36 +67,35 @@ class CliConsole(metaclass=utils.SingletonMeta):
     def __init__(self):
         self.console = rich.get_console()
         self.verbose = False
-        self.prefix = None
 
     def _color_markup(self, text, color):
         return f"[{color}]" + str(text) + f"[/{color}]"
 
-    def log(self, text, *args, **kwargs):
-        if self.prefix != None:
-            text = self.prefix + " - " + text
+    def log(self, text, prefix, *args, **kwargs):
+        if prefix != None:
+            text = prefix + " - " + text
         return self.console.log(text, *args, **kwargs)
 
     def write(self, text, *attrs):
         self.console.print(text, style=' '.join(attrs))
 
-    def debug(self, text, level=1):
-        LOGGER.debug(text)
+    def debug(self, text, prefix=None, level=1):
+        logging.getLogger(f"foreanalyzer.{prefix}").debug(text)
         if self.verbose >= level:
             #self.log(self._color_markup(text, "41"))
-            self.log(self._color_markup(text, "green"))
+            self.log(self._color_markup(text, "green"), prefix)
 
-    def info(self, text):
-        LOGGER.info(text)
+    def info(self, text, prefix=None):
+        logging.getLogger(f"foreanalyzer.{prefix}").info(text)
         #self.log(self._color_markup(text, "62"))
-        self.log(self._color_markup(text, "blue"))
+        self.log(self._color_markup(text, "blue"), prefix)
 
-    def warn(self, text):
-        LOGGER.warn(text)
+    def warn(self, text, prefix=None):
+        logging.getLogger(f"foreanalyzer.{prefix}").warn(text)
         #self.log(self._color_markup(text, "228"))
-        self.log(self._color_markup(text, "yellow"))
+        self.log(self._color_markup(text, "yellow"), prefix)
 
-    def error(self, text):
-        LOGGER.error(text)
+    def error(self, text, prefix=None):
+        logging.getLogger(f"foreanalyzer.{prefix}").error(text)
         #self.log(self._color_markup(text, "196"))
-        self.log(self._color_markup(text, "red"))
+        self.log(self._color_markup(text, "red"), prefix)

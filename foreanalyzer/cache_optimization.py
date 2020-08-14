@@ -10,29 +10,30 @@ from foreanalyzer.console import CliConsole
 
 
 # ~ * LOGGER * ~
-LOGGER = CliConsole()
-LOGGER.prefix = "optimization"
+LOGGER = CliConsole
+PREFIX = "optimization"
 # ~ * CONSTANTS * ~
 CACHE_FOLDER = os.path.join(os.path.dirname(__file__), 'cache')
 DEBUG_LEVEL = 3
 
-
+def DEBUG(text):
+    LOGGER().debug(text, PREFIX, DEBUG_LEVEL)
 
 # ~~~ * HIGH LEVEL CACHE FUNCTIONS * ~~~
 def clear_cache(filepath):
     """delete cache file"""
     if os.path.isfile(filepath):
         os.remove(filepath)
-        LOGGER.debug(f"{filepath} cache removed", DEBUG_LEVEL)
+        DEBUG(f"{os.path.basename(filepath)} cache removed")
     else:
-        LOGGER.debug(f"{filepath} not existent to remove", DEBUG_LEVEL)
+        DEBUG(f"{os.path.basename(filepath)} not existent to remove")
 
 
 def load_cache(filepath):
     """load pickle cache"""
     with open(filepath, 'rb') as f:
         data = pickle.load(f)
-    LOGGER.debug(f"{filepath} cache loaded", DEBUG_LEVEL)
+    DEBUG(f"{os.path.basename(filepath)} cache loaded")
     return data
 
 
@@ -41,13 +42,13 @@ def save_cache(filepath, data):
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-    LOGGER.debug(f"{filepath} cache saved", DEBUG_LEVEL)
+    DEBUG(f"{os.path.basename(filepath)} cache saved")
         
 
 def clear_all_cache():
     """empty cache folder - for test purposes"""
     for el in os.listdir(CACHE_FOLDER):
-        LOGGER.debug(f"CACHE CLEANING - removing {el}", DEBUG_LEVEL)
+        DEBUG(f"CACHE CLEANING - removing {el}")
         shutil.rmtree(el)
 
 # ~~~ * LOV LEVEL UTILITY FUNCTIONS * ~~~

@@ -6,10 +6,11 @@ import os
 
 import click
 
+import foreanalyzer.cache_optimization as cache
 from foreanalyzer.console import CliConsole
-from foreanalyzer.feeder import ZipFeeder01
 from foreanalyzer.exceptions import NotConfigurated
 import foreanalyzer.globals as glob
+from foreanalyzer.plot_hanlder import CandlestickHandler
 import foreanalyzer.utils as utils
 
 
@@ -22,10 +23,12 @@ INTERNAL_CONFIG_FILE = os.path.join(
 @click.group()
 @click.option('-v', '--verbose', default=0, show_default=True)
 # TODO: add a limit to verbose level set to 3 [0,3]
+# TODO: edit ot make possible -vv -vvv
 @click.option('--algo')
 def main(verbose, algo):
     """main controller"""
     CliConsole().verbose = verbose
+
 
 @main.command()
 def run():
@@ -40,18 +43,44 @@ def run():
         utils.write_int_config(config)
     config = utils.read_int_config()
     try:
-        z = ZipFeeder01("EURUSD")
-        z.process_dataframe()
+        plotter = CandlestickHandler(
+            instruments=config['account']['instruments'],
+            feeders=['ZIPF01'],#, 'XTBF01'],
+            timeframe=300)
+        plotter.feed()
+        cache.save_cache(
+            cache.cache_path(['results'],['feed01']), plotter.data)
     except KeyboardInterrupt:
         CliConsole().write("\nExiting...", "bold")
-    finally:
-        del z
+
 
 def _check_instruments_parameter(value):
     str_instr = value.split(' ')
     for instr in str_instr:
         if instr not in glob.ACCEPTED_INSTRUMENTS:
-            raise click.BadParameter("Instrument not accepted", param=instr)
+            raise click.BadParameter(f"{instr} not accepted", param=instr)
+    return str_instr
+
+
+def _check_timeframe_parameter(timeframe):
+    if timeframe not in glob.ACCEPTED_TIMEFRAMES:
+        raise click.BadParameter(f"{timeframe}S not accepted", param=timeframe)
+    return timeframe
+
+
+def _check_plotters_parameter(value):
+    str_plotters = value.split(' ')
+    for plot in str_plotters:
+        if plot not in glob.ACCEPTED_INSTRUMENTS:
+            raise click.BadParameter(f"{plot} not accepted", param=plot)
+    return str_plotters
+
+
+def _check_feeders_parameter(value):
+    str_feeders = value.split(' ')
+    for instr in str_instr:
+        if instr not in glob.ACCEPTED_INSTRUMENTS:
+            raise click.BadParameter(f"{instr} not accepted", param=instr)
     return str_instr
 
 
@@ -64,6 +93,8 @@ def _check_instruments_parameter(value):
               help="config only account settings")
 @click.option('-g', '--algo', 'section', is_flag=True, flag_value="algo",
               help="config only algo setting")
+@click.option('-p', '--plot', 'section', is_flag=True, flag_value="plot",
+              help="config only plot setting")
 def config(section):
     """set the internal configuration"""
     # get config file if present
@@ -73,7 +104,7 @@ def config(section):
         config = {}
     # set credentials
     if section in ['all', 'creds']:
-        CliConsole().write("# CREDENTIAL CONFIG #", "yellow", "bold")
+        CliConsole().write("~~~ * CREDENTIAL CONFIG * ~~~", "yellow", "bold")
         username = click.prompt("username")
         passwd = click.prompt("password", hide_input=True)
         CliConsole().debug(f"username: {username} - " +
@@ -81,7 +112,7 @@ def config(section):
         config['credentials'] = {'username': username, 'password': passwd}
     # set account settings
     if section in ['all', 'acc']:
-        CliConsole().write("# ACCOUNT CONFIG #", "yellow", "bold")
+        CliConsole().write("~~~ * ACCOUNT CONFIG * ~~~", "yellow", "bold")
         initial_config = click.prompt(
             "initial balance", default=1000, show_default=True)
         CliConsole().debug(f"initial money set: {initial_config}")
@@ -92,7 +123,7 @@ def config(section):
             'simulate_profit': sim_profit}
     # setting algo settings
     if section in ['all', 'algo']:
-        CliConsole().write("# ALGORITHM CONFIG #", "yellow", "bold")
+        CliConsole().write("~~~ * ALGORITHM CONFIG * ~~~", "yellow", "bold")
         # instruments
         instruments = click.prompt(
             "instruments (codes separated by space)", default="EURUSD",
@@ -103,10 +134,20 @@ def config(section):
             f"instruments set: {', '.join(instruments)}")
         # timeframe
         timeframe = click.prompt(
-            "timeframe (in seconds)", default=300, show_default=True, type=int)
+            "timeframe (in seconds)", default=300, show_default=True, type=int,
+            value_proc=_check_timeframe_parameter)
         CliConsole().debug(f"timeframe set: {timeframe}")
-        config['account'] = {
+        config['algo'] = {
             'instruments': instruments, 'timeframe': timeframe}
+    # plotters settings
+    if section in ['all', 'plot']:
+        CliConsole().write("~~~ * PLOT CONFIG * ~~~", "yellow", "bold")
+        # plotters
+
+        # TODO
+    # TODO: add plotter/grapher selection and configuration
+    # TODO: add option to run at the end
+    # TODO: add option to collect results
     # dump config data on internal config file
     utils.write_int_config(config)
     CliConsole().info("config data saved on internal json config file")

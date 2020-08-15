@@ -61,6 +61,8 @@ class CandlestickHandler(AbsPlotHandler):
         super().__init__('CDSPLT')
         self.instruments = instruments
         # TODO: add accepted timeframes and conversion to globals
+        if timeframe not in glob.ACCEPTED_TIMEFRAMES:
+            raise ValueError(f"timeframe {timeframe} not accepted for {self.plotter_id}")
         self.timeframe = timeframe
         self._supported_feeders = glob.SUPPORTED_FEEDERS[self.plotter_id]
         if not all([f in self._supported_feeders for f in feeders]):
@@ -105,6 +107,7 @@ class CandlestickHandler(AbsPlotHandler):
                         df = cache.load_cache(filepath)
                     else:
                         # resampling
+                        DEBUG(f"resampling {feeder_id} for {instr} with {self.timeframe}S")
                         df = df.resample(f"{self.timeframe}S").apply(_resampler).dropna()
                         cache.save_cache(filepath, df)
                     self.data[instr][feeder_id] = df

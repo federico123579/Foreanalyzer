@@ -103,7 +103,10 @@ def config(section):
     else:
         config = {}
     # set credentials
-    if section in ['all', 'creds']:
+    if section == 'all':
+        ctn_creds = click.confirm(
+            "continue to credential config?", default=True)
+    if (section == 'all' and ctn_creds is True) or section == 'creds':
         CliConsole().write("~~~ * CREDENTIAL CONFIG * ~~~", "yellow", "bold")
         username = click.prompt("username")
         passwd = click.prompt("password", hide_input=True)
@@ -111,7 +114,10 @@ def config(section):
                            f"password: {len(passwd)*'*'}")
         config['credentials'] = {'username': username, 'password': passwd}
     # set account settings
-    if section in ['all', 'acc']:
+    if section == 'all':
+        ctn_acc = click.confirm(
+            "continue to account config?", default=True)
+    if (section == 'all' and ctn_acc is True) or section == 'acc':
         CliConsole().write("~~~ * ACCOUNT CONFIG * ~~~", "yellow", "bold")
         initial_config = click.prompt(
             "initial balance", default=1000, show_default=True)
@@ -122,7 +128,10 @@ def config(section):
             'initial_config': initial_config, 'count_margin': count_margin,
             'simulate_profit': sim_profit}
     # setting algo settings
-    if section in ['all', 'algo']:
+    if section == 'all':
+        ctn_algo = click.confirm(
+            "continue to algo config?", default=True)
+    if (section == 'all' and ctn_algo is True) or section == 'algo':
         CliConsole().write("~~~ * ALGORITHM CONFIG * ~~~", "yellow", "bold")
         # instruments
         instruments = click.prompt(
@@ -140,7 +149,10 @@ def config(section):
         config['algo'] = {
             'instruments': instruments, 'timeframe': timeframe}
     # plotters settings
-    if section in ['all', 'plot']:
+    if section == 'all':
+        ctn_plot = click.confirm(
+            "continue to plot config?", default=True)
+    if (section == 'all' and ctn_plot is True) or section == 'plot':
         CliConsole().write("~~~ * PLOT CONFIG * ~~~", "yellow", "bold")
         # plotters
         CliConsole().write(f"Plot handlers available:")
@@ -151,16 +163,19 @@ def config(section):
         if not isinstance(config['plotters'], list): # uniform
             config['plotters'] = [config['plotters']]
         # feeders
-        config['feeders'] = {}
-        for plt in config['plotters']:
-            CliConsole().write(f"Feeders available for {plt}:")
-            CliConsole().write(f"{'   '.join(glob.SUPPORTED_FEEDERS[plt])}", "bold")
-            utils.PARAMETER().cli_TEMP_PLT = plt
-            config['feeders'][plt] = click.prompt(
-                "feeders (codes separated by space)", default="ZIPF01",
-                show_default=True, value_proc=_check_feeders_parameter)
-            if not isinstance(config['feeders'][plt], list): # uniform
-                config['feeders'][plt] = [config['feeders'][plt]]
+        ctn_feed = click.confirm(
+            "continue to feed config?", default=True)
+        if ctn_feed:
+            config['feeders'] = {}
+            for plt in config['plotters']:
+                CliConsole().write(f"Feeders available for {plt}:")
+                CliConsole().write(f"{'   '.join(glob.SUPPORTED_FEEDERS[plt])}", "bold")
+                utils.PARAMETER().cli_TEMP_PLT = plt
+                config['feeders'][plt] = click.prompt(
+                    "feeders (codes separated by space)", default="ZIPF01",
+                    show_default=True, value_proc=_check_feeders_parameter)
+                if not isinstance(config['feeders'][plt], list): # uniform
+                    config['feeders'][plt] = [config['feeders'][plt]]
         # TODO
     # TODO: add plotter/grapher selection and configuration
     # TODO: add option to run at the end

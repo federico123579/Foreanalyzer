@@ -10,7 +10,7 @@ import foreanalyzer.cache_optimization as cache
 from foreanalyzer.console import CliConsole
 from foreanalyzer.exceptions import NotConfigurated
 import foreanalyzer.globals as glob
-from foreanalyzer.plot_hanlder import CandlestickHandler
+from foreanalyzer.plot_hanlder import PlotterFactory
 import foreanalyzer.utils as utils
 
 
@@ -43,13 +43,14 @@ def run():
         utils.write_int_config(config)
     config = utils.read_int_config()
     try:
-        plotter = CandlestickHandler(
-            instruments=config['account']['instruments'],
-            feeders=['ZIPF01'],#, 'XTBF01'],
-            timeframe=300)
-        plotter.feed()
-        cache.save_cache(
-            cache.cache_path(['results'],['feed01']), plotter.data)
+        for plt in config['plotters']:
+            plotter = PlotterFactory[plt](
+                instruments=config['algo']['instruments'],
+                feeders=config['feeders'][plt],
+                timeframe=config['algo']['timeframe'])
+            plotter.feed()
+            cache.save_cache(
+                cache.cache_path(['results'],['feed01']), plotter.data)
     except KeyboardInterrupt:
         CliConsole().write("\nExiting...", "bold")
 
@@ -71,17 +72,18 @@ def _check_timeframe_parameter(timeframe):
 def _check_plotters_parameter(value):
     str_plotters = value.split(' ')
     for plot in str_plotters:
-        if plot not in glob.ACCEPTED_INSTRUMENTS:
+        if plot not in glob.ACCEPTED_PLOT:
             raise click.BadParameter(f"{plot} not accepted", param=plot)
     return str_plotters
 
 
 def _check_feeders_parameter(value):
     str_feeders = value.split(' ')
-    for instr in str_instr:
-        if instr not in glob.ACCEPTED_INSTRUMENTS:
-            raise click.BadParameter(f"{instr} not accepted", param=instr)
-    return str_instr
+    for feeder in str_feeders:
+        if feeder not in glob.SUPPORTED_FEEDERS[utils.PARAMETER().cli_TEMP_PLT]:
+            raise click.BadParameter(
+                "%s not supported for %s" % (feeder, utils.PARAMETER().cli_TEMP_PLT), param=feeder)
+    return str_feeders
 
 
 @main.command()
@@ -143,7 +145,24 @@ def config(section):
     if section in ['all', 'plot']:
         CliConsole().write("~~~ * PLOT CONFIG * ~~~", "yellow", "bold")
         # plotters
-
+        CliConsole().write(f"Plot handlers available:")
+        CliConsole().write(f"{'   '.join(glob.ACCEPTED_PLOT)}", "bold")
+        config['plotters'] = click.prompt(
+            "plot handlers (codes separated by space)", default="CDSPLT",
+            show_default=True, value_proc=_check_plotters_parameter)
+        if not isinstance(config['plotters'], list): # uniform
+            config['plotters'] = [config['plotters']]
+        # feeders
+        config['feeders'] = {}
+        for plt in config['plotters']:
+            CliConsole().write(f"Feeders available for {plt}:")
+            CliConsole().write(f"{'   '.join(glob.SUPPORTED_FEEDERS[plt])}", "bold")
+            utils.PARAMETER().cli_TEMP_PLT = plt
+            config['feeders'][plt] = click.prompt(
+                "feeders (codes separated by space)", default="ZIPF01",
+                show_default=True, value_proc=_check_feeders_parameter)
+            if not isinstance(config['feeders'][plt], list): # uniform
+                config['feeders'][plt] = [config['feeders'][plt]]
         # TODO
     # TODO: add plotter/grapher selection and configuration
     # TODO: add option to run at the end

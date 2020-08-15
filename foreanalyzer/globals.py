@@ -10,6 +10,9 @@ ACCEPTED_INSTRUMENTS = ["EURUSD", "AUDUSD", "EURCHF",
                         "EURGBP", "EURJPY", "GBPUSD",
                         "USDCAD", "USDCHF", "USDJPY"]
 
+# list of accepted plot handlers
+ACCEPTED_PLOT = ['CDSPLT']
+
 # list of accepted timeframes determinated by the API of the simulator
 ACCEPTED_TIMEFRAMES = [300, 3600]
 

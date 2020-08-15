@@ -89,6 +89,9 @@ class AbsFeeder(ABC):
         return df
 
 
+# ~ * NEW FEEDER CHECKLIST * ~
+# [ ] add feeder support to plot in plot_hanlder
+# [ ] add feeder support to plot in globals
 class XTBFeeder01(AbsFeeder):
     """Feeder from XTB client communicating with an APIHandler"""
     def __init__(self, instrument, timeframe, time_past):

@@ -24,6 +24,9 @@ def DEBUG(text):
 # ~~~ * HIGH LEVEL CLASSES * ~~~
 # column names present:
 # close, datatime, high, low, open
+# ~ * NEW PLOT CHECKLIST * ~
+# [ ] add to globals
+# [ ] add supported feeders to globals
 class AbsPlotHandler(ABC):
     """abstract implementation of a Plot Handler
     object with the purpose of converting a dataset of values in different
@@ -141,3 +144,9 @@ def check_existing_chart(input_dataframe, columns_to_check):
 def set_datetime_index(input_dataframe):
     """set datetime columns given by a feeder as index in chart"""
     pass
+
+
+# ~ * FACTORY * ~
+PlotterFactory = {
+    'CDSPLT': CandlestickHandler
+}

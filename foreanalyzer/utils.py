@@ -56,3 +56,9 @@ class SingletonMeta(type):
         if cls._instance is None:
             cls._instance = super().__call__()
         return cls._instance
+
+
+class PARAMETER(metaclass=SingletonMeta):
+    """used as a storage of external values and parameters"""
+    def __init__(self):
+        self.cli_TEMP_PLT = None

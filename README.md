@@ -12,3 +12,15 @@
 What to buy:
 
 - whiteboard
+
+# Checklists
+
+**~ New Plot**
+
+- [ ] add to globals
+- [ ] add supported feeders to globals
+
+**~ New Feeder**
+
+- [ ] add feeder support to plot in plot_hanlder
+- [ ] add feeder support to plot in globals

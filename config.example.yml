@@ -1,25 +1,22 @@
 USE_THIS: false
-# ====== ENGINE CONFIGURATION ======
-engine:
-    algorithms:
-        - AlgorithmName
-
-# ====== ACCOUNT CONFIGURATION ======
+# ~~~ * ACCOUNT CONFIGURATION * ~~~
+credentials:
+  username: str
+  password: str
+# ~~~ * ACCOUNT CONFIGURATION * ~~~
 account:
-  username: username
-  password: password
-  initial_balance: int
-
-# ====== ALGORITHM CONFIGURATION ======
-AlgortihmName:
-  instruments:                  # instruments to analyse
-    - instrument_name
-  range_of_values: int         # length of dataframe gathered from csv
-  start_analysis: int          # start time of analysis with seconds * from now
-  timeframe: int               # seconds of timeframe
-  update_freq: int             # timeframe of closing prices, simulating the bot
-  duplicate_protection: int    # n times the timeframe of remove zone
-  stop_loss: null
-  take_profit: null
-  save_for_eff: boolean
-  load_for_eff: boolean
+  initial_config: int
+  count_margin: boolean
+  simulate_profit: boolean
+# ~~~ * ACCOUNT CONFIGURATION * ~~~
+algo:
+  instruments:
+    - str
+  timeframe: int
+# ~~~ * ACCOUNT CONFIGURATION * ~~~
+plotters:
+  - str
+# ~~~ * ACCOUNT CONFIGURATION * ~~~
+feeders:
+  str:
+    - str

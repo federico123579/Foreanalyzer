@@ -21,9 +21,7 @@ INTERNAL_CONFIG_FILE = os.path.join(
 
 # ~~~ * CLI COMMAND BUILDER * ~~~
 @click.group()
-@click.option('-v', '--verbose', default=0, show_default=True)
-# TODO: add a limit to verbose level set to 3 [0,3]
-# TODO: edit ot make possible -vv -vvv
+@click.option('-v', '--verbose', count=True, default=0, show_default=True)
 @click.option('--algo')
 def main(verbose, algo):
     """main controller"""

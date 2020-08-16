@@ -11,6 +11,7 @@ import foreanalyzer.cache_optimization as cache
 from foreanalyzer.console import CliConsole
 from foreanalyzer.feeder import FeederFactory
 import foreanalyzer.globals as glob
+import foreanalyzer.indicator as indi
 
 
 # ~ * LOGGER * ~
@@ -112,7 +113,7 @@ class CandlestickHandler(AbsPlotHandler):
                         cache.save_cache(filepath, df)
                     self.data[instr][feeder_id] = df
                 elif feeder_id == 'XTBF01':
-                    feeder = _feeder(instr, self.timeframe, 1000) # FIXME
+                    feeder = _feeder(instr, self.timeframe, 3600*24*30) # FIXME
                     feeder.setup()
                     df = feeder.process_dataframe()
                     feeder.shutdown()
@@ -121,8 +122,15 @@ class CandlestickHandler(AbsPlotHandler):
                     LOGGER().error(f"{feeder_id} not fully supported for {self.plotter_id}", PREFIX)
         return self.data
     
-    def plot(self):
-        """plot the chart with data and process the Dataframe"""
+    def add_indicator(self, name_indicator, *args, **kwargs):
+        """add indicator and process it if supported"""
+        if name_indicator in glob.SUPPORTED_INDICATORS:
+            for instr in self.instruments:
+                for feeder_id, _ in self.feeders:
+                    df = self.data[instr][feeder_id]
+                    df = indi.IndicatorFactory[name_indicator](df, *args, **kwargs)
+        else:
+            raise ValueError(f"{name_indicator} not supported")
         
 
 class KajiHandler(AbsPlotHandler):

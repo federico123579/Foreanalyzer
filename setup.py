@@ -28,7 +28,8 @@ REQUIRED = [
     "PyYAML",
     "numpy",
     "click",
-    "rich"
+    "rich",
+    "TA-Lib"
 ]
 
 # What packages are optional?

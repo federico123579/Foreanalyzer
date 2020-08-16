@@ -47,6 +47,8 @@ def run():
                 feeders=config['feeders'][plt],
                 timeframe=config['algo']['timeframe'])
             plotter.feed()
+            plotter.add_indicator('BBANDS', period=12)
+            plotter.add_indicator('SAR', acceleration=5.0)
             cache.save_cache(
                 cache.cache_path(['results'],['feed01']), plotter.data)
     except KeyboardInterrupt:
@@ -176,7 +178,6 @@ def config(section):
                     show_default=True, value_proc=_check_feeders_parameter)
                 if not isinstance(config['feeders'][plt], list): # uniform
                     config['feeders'][plt] = [config['feeders'][plt]]
-        # TODO
     # TODO: add plotter/grapher selection and configuration
     # TODO: add option to run at the end
     # TODO: add option to collect results

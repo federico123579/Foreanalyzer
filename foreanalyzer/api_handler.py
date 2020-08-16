@@ -31,7 +31,7 @@ class APIHandler(metaclass=utils.SingletonMeta):
         if self.status:
             DEBUG("APIHandler already setup", 3)
             return
-        config = utils.read_int_config()['account']
+        config = utils.read_int_config()['credentials']
         try:
             response = self.api.login(config['username'], config['password'])
             DEBUG("logged in")

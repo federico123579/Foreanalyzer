@@ -24,3 +24,8 @@ What to buy:
 
 - [ ] add feeder support to plot in plot_hanlder
 - [ ] add feeder support to plot in globals
+
+**~ checklist add new indicator ~**
+- [ ] add funtion below
+- [ ] add to factory
+- [ ] add to glob

@@ -14,7 +14,7 @@ ACCEPTED_INSTRUMENTS = ["EURUSD", "AUDUSD", "EURCHF",
 ACCEPTED_PLOT = ['CDSPLT']
 
 # list of accepted timeframes determinated by the API of the simulator
-ACCEPTED_TIMEFRAMES = [300, 3600]
+ACCEPTED_TIMEFRAMES = [300, 1800, 3600, 86400]
 
 # folder pathes
 FOLDER_PATH = os.path.dirname(__file__)
@@ -24,3 +24,6 @@ OUTER_FOLDER_PATH = os.path.dirname(os.path.dirname(__file__))
 SUPPORTED_FEEDERS = {
     'CDSPLT': ['XTBF01', 'ZIPF01']
 }
+
+# supported indicators in CDSPLT
+SUPPORTED_INDICATORS = ['BBANDS', 'EMA', 'SAR', 'SMA']

@@ -113,7 +113,7 @@ class CandlestickHandler(AbsPlotHandler):
                         cache.save_cache(filepath, df)
                     self.data[instr][feeder_id] = df
                 elif feeder_id == 'XTBF01':
-                    feeder = _feeder(instr, self.timeframe, 3600*24*30) # FIXME
+                    feeder = _feeder(instr, self.timeframe, 3600*24*30*5) # FIXME
                     feeder.setup()
                     df = feeder.process_dataframe()
                     feeder.shutdown()

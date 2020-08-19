@@ -27,9 +27,10 @@ def DEBUG(text, level=1):
 # ~~~ * HIGH LEVEL CLASSES * ~~~
 class AbsFeeder(ABC):
     """Abstract class for feeding the plot/chart object with data"""
-    def __init__(self, instrument: str, feeder_id):
+    def __init__(self, instrument: str, feeder_id, allow_cache=True):
         self._status = 0
         self.feeder_id = feeder_id
+        self._allow_cache = allow_cache
         self.full_id = self.feeder_id + '-' + instrument
         if instrument in ACCEPTED_INSTRUMENTS:
             self.instrument = instrument
@@ -65,7 +66,6 @@ class AbsFeeder(ABC):
         """then wrap with process_dataframe"""
         pass
 
-    @abstractmethod
     def _cache_instructions(self):
         """insert cache naming instructions"""
         return [self.feeder_id, self.instrument]
@@ -80,12 +80,14 @@ class AbsFeeder(ABC):
             DEBUG(f"{self.full_id} cache found", 2)
             df = opt.load_cache(filepath)
         else:
-            DEBUG(f"{self.full_id} cache NOT found", 2)
+            if self._allow_cache:
+                DEBUG(f"{self.full_id} cache NOT found", 2)
             DEBUG("processing")
             df = self._process()
             # ~~~ * ~~~
             DEBUG(f"dataframe normalised")
-            opt.save_cache(filepath, df)
+            if self._allow_cache:
+                opt.save_cache(filepath, df)
         return df
 
 
@@ -95,7 +97,7 @@ class AbsFeeder(ABC):
 class XTBFeeder01(AbsFeeder):
     """Feeder from XTB client communicating with an APIHandler"""
     def __init__(self, instrument, timeframe, time_past):
-        super().__init__(instrument, 'XTBF01')
+        super().__init__(instrument, 'XTBF01', False)
         self.timeframe = timeframe
         self.time_past = time_past
 

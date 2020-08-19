@@ -29,12 +29,10 @@ def BBANDS(data, period=5, devup=2, devdw=2, matype=0):
     DEBUG(f"set BolligerBands with {period} as period")        
     return data
 
-
 def EMA(data, period=30):
     data[f'EMA_{period}'] = talabs.EMA(data['close'], timeperiod=period)
     DEBUG(f"set EMA with {period} as period")        
     return data
-
 
 def SAR(data, acceleration=5.0, maximum=5.0):
     data['SAR'] = talabs.SAR(
@@ -42,17 +40,24 @@ def SAR(data, acceleration=5.0, maximum=5.0):
     DEBUG(f"set SAR with {acceleration} as acceleration")        
     return data
 
-
 def SMA(data, period=30):
     data[f'SMA_{period}'] = talabs.SMA(data['close'], timeperiod=period)
     DEBUG(f"set SMA with {period} as period")        
     return data
 
 
-# ~~~ * INDICATORS * ~~~
+# ~~~ * MOMENTUM INDICATOR * ~~~
+def RSI(data, period=14):
+    data[f'RSI_{period}'] = talabs.RSI(data['close'], timeperiod=period)
+    DEBUG(f"set RSI with {period} as period")        
+    return data
+
+
+# ~~~ * FACTORY * ~~~
 IndicatorFactory = {
     'BBANDS': BBANDS,
     'EMA': EMA,
     'SAR': SAR,
-    'SMA': SMA
+    'SMA': SMA,
+    'RSI': RSI
 }

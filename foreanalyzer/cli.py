@@ -47,8 +47,10 @@ def run():
                 feeders=config['feeders'][plt],
                 timeframe=config['algo']['timeframe'])
             plotter.feed()
-            plotter.add_indicator('BBANDS', period=12)
-            plotter.add_indicator('SAR', acceleration=5.0)
+            plotter.add_indicator('BBANDS', period=30)
+            plotter.add_indicator('RSI', period=20)
+            plotter.add_indicator('SMA', period=50)
+            plotter.add_indicator('SMA', period=10)
             cache.save_cache(
                 cache.cache_path(['results'],['feed01']), plotter.data)
     except KeyboardInterrupt:

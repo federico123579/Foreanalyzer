@@ -26,4 +26,4 @@ SUPPORTED_FEEDERS = {
 }
 
 # supported indicators in CDSPLT
-SUPPORTED_INDICATORS = ['BBANDS', 'EMA', 'SAR', 'SMA']
+SUPPORTED_INDICATORS = ['BBANDS', 'EMA', 'SAR', 'SMA', 'RSI']

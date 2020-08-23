@@ -26,14 +26,14 @@ class APIHandler(metaclass=utils.SingletonMeta):
         self.api = Client()
         self.status = 0
 
-    def setup(self):
+    def setup(self, mode='demo'):
         """login with credentials in config"""
         if self.status:
             DEBUG("APIHandler already setup", 3)
             return
         config = utils.read_int_config()['credentials']
         try:
-            response = self.api.login(config['username'], config['password'])
+            response = self.api.login(config['username'], config['password'], mode=mode)
             DEBUG("logged in")
         except XTBApi.exceptions.CommandFailed:
             raise LoginFailed()

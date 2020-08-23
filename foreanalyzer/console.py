@@ -1,4 +1,3 @@
-
 # ~~~~ console.py ~~~~
 # forenalyzer.console
 # ~~~~~~~~~~~~~~~~~~~~
@@ -98,4 +97,4 @@ class CliConsole(metaclass=utils.SingletonMeta):
     def error(self, text, prefix=None):
         logging.getLogger(f"foreanalyzer.{prefix}").error(text)
         #self.log(self._color_markup(text, "196"))
-        self.log(self._color_markup(text, "red"), prefix)
+        self.log(self._color_markup(self._color_markup(text, "red"), "bold"), prefix)

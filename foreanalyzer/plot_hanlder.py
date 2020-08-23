@@ -58,12 +58,16 @@ class CandlestickHandler(AbsPlotHandler):
     takes a dataframe as input or check if the current input has the
     right columns."""
     # TODO: fix arguments order
-    def __init__(self, instruments: list, feeders: list, timeframe):
+    def __init__(self, instruments: list, feeders: list, timeframe, **kwargs):
         super().__init__('CDSPLT')
         self.instruments = instruments
         # TODO: add accepted timeframes and conversion to globals
         if timeframe not in glob.ACCEPTED_TIMEFRAMES:
             raise ValueError(f"timeframe {timeframe} not accepted for {self.plotter_id}")
+        if 'XTBF01' in feeders and 'time_past' not in [k for k in kwargs.keys()]:
+            self._xtb_time_past = None
+        else:
+            self._xtb_time_past = kwargs['time_past']
         self.timeframe = timeframe
         self._supported_feeders = glob.SUPPORTED_FEEDERS[self.plotter_id]
         if not all([f in self._supported_feeders for f in feeders]):
@@ -113,7 +117,9 @@ class CandlestickHandler(AbsPlotHandler):
                         cache.save_cache(filepath, df)
                     self.data[instr][feeder_id] = df
                 elif feeder_id == 'XTBF01':
-                    feeder = _feeder(instr, self.timeframe, 3600*24*30*5) # FIXME
+                    if self._xtb_time_past is None:
+                        self._xtb_time_past = 3600*24*30*5
+                    feeder = _feeder(instr, self.timeframe, self._xtb_time_past)
                     feeder.setup()
                     df = feeder.process_dataframe()
                     feeder.shutdown()

@@ -3,6 +3,7 @@ config.yml
 config.json
 *.log*
 *.pickle
+**/test.ipynb
 
 ### Distribution
 *.egg-info/

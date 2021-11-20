@@ -10,7 +10,7 @@ import foreanalyzer.cache_optimization as cache
 from foreanalyzer.console import CliConsole
 from foreanalyzer.exceptions import NotConfigurated
 import foreanalyzer.globals as glob
-from foreanalyzer.plot_hanlder import PlotterFactory
+from foreanalyzer.algo import AlgoFactory
 import foreanalyzer.utils as utils
 
 
@@ -18,6 +18,12 @@ import foreanalyzer.utils as utils
 INTERNAL_CONFIG_FILE = os.path.join(
     glob.OUTER_FOLDER_PATH, 'config.json')
 
+
+# ~ * LOGGER * ~
+PREFIX = "algo"
+
+def INFO(text):
+    CliConsole().info(text, PREFIX)
 
 # ~~~ * CLI COMMAND BUILDER * ~~~
 @click.group()
@@ -41,18 +47,12 @@ def run():
         utils.write_int_config(config)
     config = utils.read_int_config()
     try:
-        for plt in config['plotters']:
-            plotter = PlotterFactory[plt](
-                instruments=config['algo']['instruments'],
-                feeders=config['feeders'][plt],
-                timeframe=config['algo']['timeframe'])
-            plotter.feed()
-            plotter.add_indicator('BBANDS', period=30)
-            plotter.add_indicator('RSI', period=20)
-            plotter.add_indicator('SMA', period=50)
-            plotter.add_indicator('SMA', period=10)
-            cache.save_cache(
-                cache.cache_path(['results'],['feed01']), plotter.data)
+        algo = AlgoFactory['ATS03']()
+        algo.plot()
+        gains = algo.process()
+        #algo.get_score(gains)
+        algo.get_result(gains)
+        cache.save_cache(cache.cache_path(['results'],['feed03']), gains)
     except KeyboardInterrupt:
         CliConsole().write("\nExiting...", "bold")
 

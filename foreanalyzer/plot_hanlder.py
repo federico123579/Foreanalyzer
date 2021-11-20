@@ -2,7 +2,7 @@
 # forenalyzer.plot_handler
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from abc import ABC
+from abc import ABCMeta, abstractmethod
 import os.path
 
 import pandas as pd
@@ -28,7 +28,7 @@ def DEBUG(text):
 # ~ * NEW PLOT CHECKLIST * ~
 # [ ] add to globals
 # [ ] add supported feeders to globals
-class AbsPlotHandler(ABC):
+class AbsPlotHandler(metaclass=ABCMeta):
     """abstract implementation of a Plot Handler
     object with the purpose of converting a dataset of values in different
     charts and plots (Candlestick and Kaji for the moment)
@@ -42,10 +42,28 @@ class AbsPlotHandler(ABC):
     progressbar.
     ~~~~ * INPUT * ~~~~
     takes a dataframe with columns exactly datetime|price"""
-    def __init__(self, plotter_id):
+    def __init__(self, plotter_id: str, instruments:list, feeders: list, **kwargs):
         self.plotter_id = plotter_id
+        self.instruments = instruments
         self._columns = list
         self.data = pd.DataFrame()
+        self._supported_feeders = glob.SUPPORTED_FEEDERS[self.plotter_id]
+        if not all([f in self._supported_feeders for f in feeders]):
+            LOGGER().error(f"{[f for f in feeders if f not in self._supported_feeders]} not" +
+                         "supported, ignoring these...", PREFIX)
+        # feeders
+        if 'XTBF01' in feeders:
+            if 'time_past' not in [k for k in kwargs.keys()]:
+                self._xtb_time_past = None
+            else:
+                self._xtb_time_past = kwargs['time_past']
+        self.feeders = [[f, FeederFactory[f]] for f in feeders if f in self._supported_feeders]
+        self.data = {instr: {f: None for f in [f for f, _ in self.feeders]} for instr in self.instruments}
+
+    @abstractmethod
+    def feed(self):
+        """init & starts feeders then refines data received to meet the requisites of the
+        plotter"""
 
 
 class CandlestickHandler(AbsPlotHandler):
@@ -59,41 +77,31 @@ class CandlestickHandler(AbsPlotHandler):
     right columns."""
     # TODO: fix arguments order
     def __init__(self, instruments: list, feeders: list, timeframe, **kwargs):
-        super().__init__('CDSPLT')
-        self.instruments = instruments
+        super().__init__('CDSPLT', instruments=instruments, feeders=feeders, **kwargs)
         # TODO: add accepted timeframes and conversion to globals
         if timeframe not in glob.ACCEPTED_TIMEFRAMES:
             raise ValueError(f"timeframe {timeframe} not accepted for {self.plotter_id}")
-        if 'XTBF01' in feeders and 'time_past' not in [k for k in kwargs.keys()]:
-            self._xtb_time_past = None
-        else:
-            self._xtb_time_past = kwargs['time_past']
         self.timeframe = timeframe
-        self._supported_feeders = glob.SUPPORTED_FEEDERS[self.plotter_id]
-        if not all([f in self._supported_feeders for f in feeders]):
-            LOGGER().error(f"{[f for f in feeders if f not in self._supported_feeders]} not" +
-                         "supported, ignoring these...", PREFIX)
-        self.feeders = [[f, FeederFactory[f]] for f in feeders if f in self._supported_feeders]
-        self.data = {instr: {f: None for f in [f for f, _ in self.feeders]} for instr in self.instruments}
+
+    def _resampler(self, input):
+        """resampler for dataframe.resample in self.feed"""
+        if len(input) == 0:
+            return None
+        else:
+            if input.name == "open":
+                return input[0]
+            elif input.name == "close":
+                return input[-1]
+            elif input.name == "high":
+                return max(input)
+            elif input.name == "low":
+                return min(input)
+            else:
+                return input[-1]
 
     def feed(self): 
         """init & starts feeders then refines data received to meet the requisites of the
         plotter"""
-        # DEFINING RESAMPLER
-        def _resampler(input):
-            if len(input) == 0:
-                return None
-            else:
-                if input.name == "open":
-                    return input[0]
-                elif input.name == "close":
-                    return input[-1]
-                elif input.name == "high":
-                    return max(input)
-                elif input.name == "low":
-                    return min(input)
-                else:
-                    return input[-1]
         # FEED main function
         for instr in self.instruments:
             DEBUG(f"feeding {self.plotter_id} with {instr}")
@@ -113,7 +121,7 @@ class CandlestickHandler(AbsPlotHandler):
                     else:
                         # resampling
                         DEBUG(f"resampling {feeder_id} for {instr} with {self.timeframe}S")
-                        df = df.resample(f"{self.timeframe}S").apply(_resampler).dropna()
+                        df = df.resample(f"{self.timeframe}S").apply(self._resampler).dropna()
                         cache.save_cache(filepath, df)
                     self.data[instr][feeder_id] = df
                 elif feeder_id == 'XTBF01':
@@ -128,13 +136,17 @@ class CandlestickHandler(AbsPlotHandler):
                     LOGGER().error(f"{feeder_id} not fully supported for {self.plotter_id}", PREFIX)
         return self.data
     
+    def resample_data(self, df, timeframe):
+        """resample data with self._resampler"""
+        return df.resample(f"{timeframe}S").apply(self._resampler)
+
     def add_indicator(self, name_indicator, *args, **kwargs):
         """add indicator and process it if supported"""
         if name_indicator in glob.SUPPORTED_INDICATORS:
             for instr in self.instruments:
                 for feeder_id, _ in self.feeders:
                     df = self.data[instr][feeder_id]
-                    df = indi.IndicatorFactory[name_indicator](df, *args, **kwargs)
+                    self.data[instr][feeder_id] = indi.IndicatorFactory[name_indicator](df, *args, **kwargs)
         else:
             raise ValueError(f"{name_indicator} not supported")
         
@@ -145,7 +157,45 @@ class KajiHandler(AbsPlotHandler):
     ~~~~ * INPUT * ~~~~
     takes a dataframe as input or check if the current input is already a kaji
     input"""
-    pass
+    def __init__(self, instruments: list, feeders: list, **kwargs):
+        super().__init__('KAGIPLT', instruments=instruments, feeders=feeders, **kwargs)
+
+    def feed(self):
+        """init & starts feeders then refines data received to meet the requisites of the
+        plotter"""
+        pass
+        #for instr in self.instruments:
+        #    DEBUG(f"feeding {self.plotter_id} with {instr}")
+        #    for feeder_id, _feeder in self.feeders:
+        #        DEBUG(f"current feeding {feeder_id}")
+        #        if feeder_id == 'ZIPF01':
+        #            feeder = _feeder(instr)
+        #            feeder.setup()
+        #            df = feeder.process_dataframe()
+        #            feeder.shutdown()
+        #            # cache optimization
+        #            filepath = cache.cache_path(
+        #                ['plotters', self.plotter_id, feeder_id],
+        #                [instr, 'Rv1', f"{self.timeframe}S"])
+        #            if os.path.isfile(filepath):
+        #                df = cache.load_cache(filepath)
+        #            else:
+        #                # resampling
+        #                DEBUG(f"resampling {feeder_id} for {instr} with {self.timeframe}S")
+        #                df = df.resample(f"{self.timeframe}S").apply(self._resampler).dropna()
+        #                cache.save_cache(filepath, df)
+        #            self.data[instr][feeder_id] = df
+        #        elif feeder_id == 'XTBF01':
+        #            if self._xtb_time_past is None:
+        #                self._xtb_time_past = 3600*24*30*5
+        #            #feeder = _feeder(instr, self.timeframe, self._xtb_time_past)
+        #            #feeder.setup()
+        #            #df = feeder.process_dataframe()
+        #            #feeder.shutdown()
+        #            self.data[instr][feeder_id] = df
+        #        else:
+        #            LOGGER().error(f"{feeder_id} not fully supported for {self.plotter_id}", PREFIX)
+        #return self.data 
 
 
 # ~~~ * LOV LEVEL UTILY FUNCTIONS * ~~~
@@ -165,5 +215,9 @@ def set_datetime_index(input_dataframe):
 
 # ~ * FACTORY * ~
 PlotterFactory = {
-    'CDSPLT': CandlestickHandler
+    'CDSPLT': CandlestickHandler,
+    #'KAGIPLT': KajiHandler
 }
+
+han = KajiHandler(['EURUSD'], ['ZIPF01'])
+han.feed()
